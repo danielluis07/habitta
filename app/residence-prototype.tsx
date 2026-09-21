@@ -38,10 +38,10 @@ function Contact({ residence }: { residence: string }) {
 
 export function VariantA({ draft, buildingIndex }: ContentProps) {
   return <div className="editorial-story">
-    <div className="editorial-opening"><div><p className="residence-lead">{draft.hook}</p><p>{draft.idea}</p></div><Facts draft={draft} /></div>
+    <div className="editorial-opening"><div><p className="residence-lead">{draft.hook}</p><p>{draft.idea}</p></div><div><p className="residence-kicker">How the home is arranged</p><p>{draft.arrangement}</p></div></div>
     <ImageFrame kind="living" buildingIndex={buildingIndex} caption={draft.rooms[0].title} />
     <div className="editorial-sequence">{draft.rooms.slice(1).map(room => <section key={room.kind}><ImageFrame kind={room.kind} buildingIndex={buildingIndex} caption={room.name} /><div><h2>{room.title}</h2><p>{room.text}</p></div></section>)}</div>
-    <section className="editorial-plan"><div><p className="residence-kicker">How the home is arranged</p><h2>Rooms in relation.</h2><p>{draft.arrangement}</p><details><summary>Concept details & materials</summary><p>{draft.materials.join(", ")}. These surfaces recur across the home and its exterior.</p><ImageFrame kind="material" buildingIndex={buildingIndex} caption="Material relationships" /></details></div><Plan draft={draft} /></section>
+    <section className="editorial-plan"><div><h2>Materials throughout the home.</h2><p>{draft.materials.join(", ")}. These surfaces recur across the home and its exterior.</p><details><summary>Dimensions & diagram</summary><Facts draft={draft} /><Plan draft={draft} /></details></div><ImageFrame kind="material" buildingIndex={buildingIndex} caption="Material relationships" /></section>
     <BuildingContext draft={draft} buildingIndex={buildingIndex} />
     <Contact residence={buildings[buildingIndex].residence} />
   </div>;

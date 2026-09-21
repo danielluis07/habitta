@@ -2,7 +2,7 @@
 
 Throwaway artifact for [Prototype a building detail story](https://github.com/danielluis07/habitta/issues/5), within [Shape a fictional 3D architecture studio portfolio](https://github.com/danielluis07/habitta/issues/1).
 
-Status: **Awaiting human review. No residence presentation decision has been made.** Keep this experiment on `prototype/building-detail-story`; the map ends at an implementation-ready spec, so none of these variants is promoted to production.
+Status: **A — Editorial story selected**, with arrangement and materials visible, dimensions and the diagram expandable, and optional contact after the story. The resolution on [Prototype a building detail story](https://github.com/danielluis07/habitta/issues/5) is the canonical decision. Keep this experiment on `prototype/building-detail-story`; the map ends at an implementation-ready spec, so none of these variants is promoted to production.
 
 ## Run
 
@@ -25,8 +25,8 @@ After choosing a building and explicitly opening its featured residence, what sh
 Retain the discovery prototype's subject-specific palette: sky `#d7e4e8`, chalk `#f4f5f0`, foliage `#75826f`, stone `#c7c8bc`, graphite `#283a3c`. Inter carries the studio identity and readable body text. Large, left-aligned residence names establish the home; architectural diagrams occupy the main visual space. Each option proposes a different reading behavior, rather than recoloring the same layout.
 
 ```text
-A: identity -> idea + facts -> living -> outdoor -> quiet rooms
-   -> arrangement + optional materials -> building -> optional contact
+A: identity -> idea + arrangement -> living -> outdoor -> quiet rooms
+   -> materials + expandable dimensions/diagram -> building -> optional contact
 
 B: identity -> large image + changing caption | expandable details
    -> previous/next through five images      | optional contact
@@ -41,7 +41,7 @@ The prototype remains in the existing home/story flow. Its shared title and navi
 
 | Variant | Primary affordance | Information depth | Tradeoff to judge |
 | --- | --- | --- | --- |
-| A: Editorial story | Scroll through an authored sequence | Idea and key facts are visible first; images and short room stories follow; material details expand | Clear narrative and building relationship, but longer page |
+| A: Editorial story (selected) | Scroll through an authored sequence | Idea and arrangement are visible first; images and short room stories follow; materials stay visible and dimensions/diagram expand | Clear narrative and building relationship, but longer page |
 | B: Image gallery | Previous/next through five images | Captions change with the image; design idea, dimensions/arrangement, and building context expand in the side column | Most image-led; important context can be missed if visitors skip details |
 | C: Spatial notebook | Select a labeled space in a schematic plan | Idea and facts stay beside the diagram; each selection changes the room image and description | Explains spatial relationships directly, but asks visitors to understand a diagram |
 
@@ -49,14 +49,14 @@ On narrow screens, columns become a reading sequence. The gallery image precedes
 
 ## Proposed content and image roles
 
-These are **proposals for review**, not approved requirements.
+The selected variant demonstrates the content roles below. Specific building names, numerical facts, materials, and geometry remain illustrative; see the issue resolution for the decision boundaries. The earlier options remain available for comparison.
 
 - Identity: building name, featured residence name, and explicit imagined-concept status.
 - Design idea: one short introduction tied to how the home is arranged.
-- Facts: arrangement, interior area, outdoor area, and bedroom count. All numerical examples are fictional placeholders, visibly identified as illustrative.
+- Facts: arrangement is visible in the introduction; interior area, outdoor area, and bedroom count sit within the collapsed dimensions/diagram disclosure. All numerical examples are fictional placeholders, visibly identified as illustrative.
 - Room stories: shared living space, outdoor space, and quiet rooms, each with an image role and a short explanation.
-- Arrangement: a schematic relationship diagram. Vale's upper level is marked; the diagram does not claim to be an architectural floor plan.
-- Materials: a small named palette with an optional closer view.
+- Arrangement: a visible plain-language description, with a schematic relationship diagram available on expansion. Vale's upper level is marked; the diagram does not claim to be an architectural floor plan.
+- Materials: a visible named palette and material study.
 - Building context: exterior study, the home's approximate position, and a short explanation of how it belongs within the structure.
 - Contact: an optional **Contact Habitta** disclosure. A shows it after the full story, B alongside the gallery, C after the plan-led content and building context. This demonstrates placement only; no form or message is sent and no real contact address is invented.
 
@@ -64,13 +64,9 @@ Proposed image inventory per home: living view (also the editorial opening image
 
 The SVG diagrams are intentionally rough, locally authored code assets. They stand in for image roles and proportions; they are not AI-generated photos or final building geometry. Room diagrams share a simple composition across homes, with palette/context cues, and do not validate geometric correspondence. Final visual consistency rules belong to the remaining media and scene decisions.
 
-## Review
+## Review outcome
 
-1. Choose A, B, C, or a specific combination. Does the visitor need an authored story, a gallery, or an explanation of the spatial arrangement?
-2. Decide whether concept areas, bedroom counts, and a diagram should be visible, expandable, or omitted. The draft numbers themselves are not collection decisions.
-3. Judge the optional contact placement, and whether the proposed room/image coverage is enough to understand the home.
-
-Suggested starting point: A, because it gives the residence a short narrative and explicitly reconnects it to the building. The user may prefer the gallery's pace or the notebook's spatial focus.
+The user selected A and answered the detail-depth and contact-placement questions. Variant A now reflects those answers. The original comparison is preserved at commit `2089534`; B and C remain as throwaway alternatives. The full decision belongs to the issue's resolution comment rather than this artifact.
 
 ## Captured views
 
@@ -86,6 +82,8 @@ Suggested starting point: A, because it gives the residence a short narrative an
 Lint, TypeScript, and diff whitespace checks passed. A temporary Chromium smoke check exercised all variants, URL and keyboard switching, one retained scene canvas, gallery controls, room selection, contact expansion, focus on opening and return, Escape, both return paths, and direct links to all three provisional residences. Each variant fit a 390px viewport without horizontal overflow. No browser page errors were reported. The existing scene emits a Three.js soft-shadow deprecation warning; this content prototype does not settle the production renderer.
 
 Screenshots were visually inspected on desktop and mobile. An initial return-focus timing issue and an unintended filled line in a schematic were corrected before the passing check. These are prototype checks, not production accessibility, device-performance, or geometric-consistency certification.
+
+After the user's selection, lint and TypeScript were rerun. A focused desktop/mobile browser check verified that arrangement and materials remain visible, dimensions and the diagram start collapsed and expand together, and contact remains after the story. The selected variant's desktop and mobile screenshots were refreshed.
 
 ## References consulted
 
