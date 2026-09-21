@@ -2,11 +2,11 @@
 
 Throwaway artifact for [Prototype the building discovery journey](https://github.com/danielluis07/habitta/issues/4), within [Shape a fictional 3D architecture studio portfolio](https://github.com/danielluis07/habitta/issues/1).
 
-Status: **awaiting human review**. None of these options is an accepted decision. Do not promote this code to production. The final renderer and asset pipeline remain part of [Choose the 3D scene and asset approach](https://github.com/danielluis07/habitta/issues/9).
+Status: **B — Open district selected by the user**. The [resolution comment](https://github.com/danielluis07/habitta/issues/4#issuecomment-5766680924) is the canonical decision. The variants below preserve the reviewed experiment. Do not promote this code to production. The final renderer and asset pipeline remain part of [Choose the 3D scene and asset approach](https://github.com/danielluis07/habitta/issues/9).
 
 ## Run
 
-On branch `prototype/building-discovery`, run `bun install`, then `bun run dev`. Open `http://localhost:3000/?variant=A`.
+On branch `prototype/building-discovery`, run `bun install`, then `bun run dev`. Open `http://localhost:3000/?variant=B` for the selected journey.
 
 The floating bottom switcher and left/right arrow keys cycle through A, B, and C. Each option has a shareable URL. The switcher and state inspector are development tools and are hidden in production builds.
 
@@ -43,7 +43,7 @@ The local video did not decode with the available ffmpeg tool. The prototype fol
 
 Try selecting two different buildings, opening a residence, and returning to the district in each variant. Try dragging before selecting so the return behavior is visible.
 
-Choose an entry/layout, or identify a combination. Then judge whether bounded orbit, a camera move on selection, an explicit residence-opening action, and restoring the district viewpoint feel right. The ticket remains open until that feedback is recorded as a decision.
+The user selected B — Open district. The ticket is resolved; consult its resolution comment for the accepted journey and the boundaries of this decision.
 
 ## Captured views
 
