@@ -295,3 +295,123 @@
 @media (prefers-reduced-motion: reduce) {
   .discovery-prototype *, .prototype-switcher * { transition: none !important; }
 }
+
+/* Throwaway residence stories. Retain the district's sky, chalk, stone, foliage,
+   and graphite palette with Inter throughout. Architecture and content order,
+   rather than additional decoration, distinguish the three structures. */
+.residence-prototype { position: absolute; inset: 0; z-index: 5; overflow-y: auto; overscroll-behavior: contain; background: var(--chalk); color: var(--graphite); }
+.residence-header { display: flex; align-items: center; gap: 36px; padding: 30px 4%; }
+.residence-header > span:nth-child(2) { font-size: 12px; }
+.residence-header > button { margin-left: auto; }
+.residence-body { max-width: 1460px; padding: 30px 4% 130px; margin-inline: auto; }
+.residence-title { margin-bottom: 42px; }
+.residence-title > p:first-child { font-size: 13px; margin-bottom: 16px; }
+.residence-title h1 { font-size: clamp(40px, 5.3vw, 82px); line-height: 1.05; letter-spacing: -.06em; font-weight: 400; max-width: 1000px; }
+.residence-title h1:focus { outline: none; }
+.residence-title > p:last-child { margin-top: 20px; font-size: 11px; color: #596965; }
+.residence-prototype h2 { font-size: clamp(27px, 2.8vw, 42px); line-height: 1.12; letter-spacing: -.04em; font-weight: 400; margin-bottom: 20px; }
+.residence-prototype p { text-wrap: pretty; }
+.residence-prototype section p, .editorial-opening p, .spatial-workspace > aside > p, .gallery-reading p { font-size: 14px; line-height: 1.8; max-width: 60ch; }
+.residence-prototype p.residence-lead { font-size: clamp(22px, 2.4vw, 34px); line-height: 1.25; letter-spacing: -.035em; margin-bottom: 20px; }
+.residence-prototype p.residence-kicker { font-size: 12px; margin-bottom: 20px; }
+.residence-image { margin: 0; min-width: 0; }
+.residence-sketch { display: block; width: 100%; height: 100%; max-height: 640px; object-fit: cover; background: var(--sky); }
+.residence-image figcaption { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; font-size: 12px; line-height: 1.5; }
+.residence-image figcaption small { font-size: 10px; color: #596965; white-space: nowrap; }
+.residence-facts dl { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 30px; }
+.residence-facts dt { font-size: 11px; color: #596965; margin-bottom: 6px; }
+.residence-facts dd { font-size: 21px; letter-spacing: -.035em; }
+.residence-facts > p { font-size: 10px !important; color: #596965; margin-top: 14px; }
+.editorial-opening { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12%; margin-bottom: 38px; }
+.editorial-story > .residence-image .residence-sketch { aspect-ratio: 1.95; }
+.editorial-sequence { margin-top: 70px; display: grid; gap: 70px; }
+.editorial-sequence section { display: grid; grid-template-columns: 1.4fr 1fr; align-items: center; gap: 8%; }
+.editorial-sequence section:nth-child(even) .residence-image { order: 2; }
+.editorial-plan { display: grid; grid-template-columns: 1fr 1.1fr; gap: 10%; align-items: center; margin-block: 90px; }
+.residence-prototype details { margin-top: 24px; }
+.residence-prototype summary { cursor: pointer; font-size: 13px; padding-block: 12px; }
+.residence-prototype details p { margin-block: 14px; }
+.residence-plan { padding: 20px; background: #e5eae3; }
+.plan-drawing { display: grid; grid-template-columns: 1.15fr .8fr 1fr; grid-template-rows: minmax(110px, 1fr) 40px; gap: 6px; min-height: 210px; padding: 12px; border: 3px solid #7b8980; }
+.plan-space { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 12px 6px; text-align: center; min-width: 0; background: #d6d6c4; border: 1px solid #a1a995; }
+.plan-space span { font-size: 12px; line-height: 1.5; }
+.plan-space small { font-size: 10px; }
+.plan-space-0 { grid-row: 1; grid-column: 1; }
+.plan-space-1 { grid-row: 1; grid-column: 2; background: #bac8ac; }
+.plan-space-2 { grid-row: 1; grid-column: 3; background: #d0c6b4; }
+.plan-core { grid-row: 2; grid-column: 1 / -1; text-align: center; font-size: 10px; padding: 10px; background: #c4ccc3; }
+[data-duplex="true"] .plan-space-2 { border: 2px dashed #7b8980; }
+.plan-space[aria-pressed="true"] { outline: 3px solid #355b55; outline-offset: -3px; }
+.plan-space:hover:not(div) { background: #a7bcac; }
+.residence-plan figcaption { font-size: 10px; line-height: 1.6; color: #596965; margin-top: 16px; }
+.residence-building { display: grid; grid-template-columns: 1fr 1fr; gap: 8%; align-items: center; padding: 40px; background: #e3e9e3; }
+.residence-building p + p { margin-top: 16px; }
+.residence-contact { display: flex; justify-content: space-between; align-items: start; gap: 50px; padding: 65px 0; }
+.residence-contact > div > p { margin-bottom: 14px; font-size: 12px; }
+.residence-contact > details { width: 38%; min-width: 180px; margin-top: 12px; }
+.residence-contact summary { font-size: 16px; text-decoration: underline; text-underline-offset: 6px; }
+.residence-prototype .contact-prototype-note { font-size: 11px; color: #596965; }
+.residence-end { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-block: 25px; border-top: 1px solid var(--border); }
+.residence-end p { font-size: 13px; }
+.story-review-notes { font-size: 12px; color: #596965; max-width: 850px; }
+.story-review-notes p, .story-review-notes li { line-height: 1.7; margin-block: 12px; }
+.story-review-notes ul { list-style: disc; padding-left: 20px; }
+.gallery-story { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(250px, .85fr); gap: 5%; align-items: start; }
+.gallery-stage { position: sticky; top: 24px; }
+.gallery-stage .residence-sketch { aspect-ratio: 1.4; }
+.gallery-controls { display: flex; align-items: center; justify-content: space-between; margin-block: 12px; }
+.gallery-controls > span { font-size: 12px; }
+.gallery-reading h2 { font-size: clamp(27px, 2.5vw, 38px); }
+.gallery-reading > details { border-top: 1px solid var(--border); margin-top: 10px; }
+.gallery-reading .residence-facts { margin-block: 18px; }
+.gallery-reading .residence-contact { display: block; padding: 35px 0 25px; }
+.gallery-reading .residence-contact h2 { display: none; }
+.gallery-reading .residence-contact > details { width: 100%; }
+.gallery-reading .residence-contact > div > p { margin-bottom: 0; }
+.story-local-state { grid-column: 1 / -1; display: block; font-size: 10px; color: #596965; margin: 12px 0 25px; }
+.spatial-workspace { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(0, 1.4fr); align-items: start; gap: 5%; }
+.spatial-workspace .residence-plan { margin-block: 25px; }
+.spatial-selected h2 { margin-top: 24px; }
+.spatial-details { display: flex; justify-content: space-between; align-items: start; gap: 50px; margin: 50px 0; }
+.spatial-details > p { max-width: 50ch; font-size: 14px; line-height: 1.8; }
+.spatial-details > details { margin-top: 0; width: 40%; }
+@media (max-width: 900px) {
+  .residence-body { padding-top: 20px; }
+  .residence-title { margin-bottom: 30px; }
+  .editorial-opening { gap: 6%; }
+  .gallery-story { grid-template-columns: minmax(0, 1.2fr) minmax(240px, 1fr); gap: 4%; }
+  .spatial-workspace { grid-template-columns: 1fr; }
+  .spatial-workspace > aside { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 30px; }
+  .spatial-workspace > aside .residence-plan { grid-row: 1 / 4; grid-column: 2; margin: 0; }
+  .spatial-workspace > aside > p.residence-lead { margin-bottom: 0; }
+  .spatial-selected { margin-top: 35px; }
+}
+@media (max-width: 640px) {
+  .residence-header { padding: 25px 20px; gap: 12px; }
+  .residence-header > span:nth-child(2) { display: none; }
+  .residence-body { padding: 22px 20px 115px; }
+  .residence-title h1 { font-size: 46px; }
+  .residence-title > p:last-child { max-width: 32ch; line-height: 1.5; }
+  .editorial-opening, .editorial-sequence section, .editorial-plan, .residence-building, .gallery-story { grid-template-columns: 1fr; gap: 26px; }
+  .editorial-opening { margin-bottom: 30px; }
+  .residence-facts dl { grid-template-columns: 1fr 1fr; }
+  .editorial-story > .residence-image .residence-sketch { aspect-ratio: 1.25; }
+  .residence-image figcaption { font-size: 10px; }
+  .residence-image figcaption small { font-size: 9px; }
+  .editorial-sequence { margin-top: 40px; gap: 40px; }
+  .editorial-sequence section:nth-child(even) .residence-image { order: 0; }
+  .editorial-plan { margin-block: 50px; }
+  .residence-building { padding: 20px; }
+  .residence-contact { flex-direction: column; gap: 0; padding-block: 40px; }
+  .residence-contact > details { width: 100%; }
+  .residence-end { align-items: start; flex-direction: column; }
+  .gallery-stage { position: static; }
+  .gallery-reading .residence-contact { padding-top: 25px; }
+  .spatial-workspace > aside { display: block; }
+  .spatial-workspace > aside .residence-plan { margin-block: 25px; }
+  .spatial-details { flex-direction: column; gap: 15px; margin-block: 35px; }
+  .spatial-details > details { width: 100%; }
+  .residence-plan { padding: 14px; }
+  .plan-drawing { padding: 6px; gap: 4px; }
+  .plan-space span { font-size: 11px; }
+}

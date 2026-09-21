@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 import { geistMono, geistSans, inter } from "@/fonts";
 
 export const metadata: Metadata = {
-  title: "Habitta — Discovery prototype",
-  description: "Three ways to discover an imagined district. A throwaway interaction prototype.",
+  title: "Habitta — Residence story prototype",
+  description: "Three ways to explore a featured residence. A throwaway content and layout prototype.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

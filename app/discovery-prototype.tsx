@@ -1,7 +1,6 @@
 "use client";
 
-// Three structurally different discovery journeys on /?variant=A|B|C.
-// This branch answers an interaction question; all concepts and detail copy are placeholders.
+// Accepted Open district journey hosts three throwaway residence-story variants.
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import PrototypeSwitcher from "@/components/prototype-switcher";
 import { buildings, variants, type Variant } from "@/app/discovery-prototype-data";
 import type { SceneHandle } from "@/app/discovery-prototype-scene";
+import ResidencePrototype from "@/app/residence-prototype";
+import { residenceDrafts, storyVariants, type StoryVariant } from "@/app/residence-prototype-data";
 
 const PrototypeScene = dynamic(() => import("@/app/discovery-prototype-scene"), {
   ssr: false,
@@ -18,23 +19,37 @@ const PrototypeScene = dynamic(() => import("@/app/discovery-prototype-scene"), 
 export default function DiscoveryPrototype() {
   const searchParams = useSearchParams();
   const value = searchParams.get("variant");
-  const variant: Variant = value === "B" || value === "C" ? value : "A";
-  return <><Journey key={variant} variant={variant} /><PrototypeSwitcher current={variant} /></>;
+  const variant: StoryVariant = value === "B" || value === "C" ? value : "A";
+  const initialResidence = residenceDrafts.findIndex(item => item.slug === searchParams.get("residence"));
+  return <Journey variant="B" storyVariant={variant} initialResidence={initialResidence} />;
 }
 
-function Journey({ variant }: { variant: Variant }) {
+function Journey({ variant, storyVariant, initialResidence }: { variant: Variant; storyVariant: StoryVariant; initialResidence: number }) {
   const [entered, setEntered] = useState(variant !== "A");
-  const [selected, setSelected] = useState<number | null>(null);
-  const [story, setStory] = useState(false);
+  const [selected, setSelected] = useState<number | null>(initialResidence < 0 ? null : initialResidence);
+  const [story, setStory] = useState(initialResidence >= 0);
+  const wasStory = useRef(story);
   const [indexOpen, setIndexOpen] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [ready, setReady] = useState(false);
   const api = useRef<SceneHandle | null>(null);
-  const storyHeading = useRef<HTMLHeadingElement>(null);
+  const initialSelection = useRef(initialResidence);
+  const selectionInitialized = useRef(false);
   const lastTrigger = useRef<HTMLElement | null>(null);
   const openStoryButton = useRef<HTMLButtonElement>(null);
   const building = selected === null ? null : buildings[selected];
-  const onReady = useCallback((motion: boolean) => { setReady(true); setReduced(motion); }, []);
+  const onReady = useCallback((motion: boolean) => {
+    setReady(true); setReduced(motion);
+    if (!selectionInitialized.current && initialSelection.current >= 0) api.current?.select(initialSelection.current);
+    selectionInitialized.current = true;
+  }, []);
+
+  function updateStoryUrl(index: number | null) {
+    const url = new URL(window.location.href);
+    if (index === null) url.searchParams.delete("residence");
+    else url.searchParams.set("residence", residenceDrafts[index].slug);
+    window.history.replaceState(null, "", url);
+  }
 
   function select(index: number) {
     lastTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -42,17 +57,24 @@ function Journey({ variant }: { variant: Variant }) {
   }
   function returnToDistrict() {
     setSelected(null); setStory(false); api.current?.select(null);
+    updateStoryUrl(null);
     requestAnimationFrame(() => lastTrigger.current?.isConnected && lastTrigger.current.focus());
   }
   function closeStory() {
     setStory(false);
-    requestAnimationFrame(() => openStoryButton.current?.focus());
+    updateStoryUrl(null);
   }
-  useEffect(() => { if (story) storyHeading.current?.focus(); }, [story]);
+  useEffect(() => {
+    if (wasStory.current && !story) {
+      if (selected !== null) openStoryButton.current?.focus();
+      else if (lastTrigger.current?.isConnected) lastTrigger.current.focus();
+    }
+    wasStory.current = story;
+  }, [story, selected]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (story) { setStory(false); requestAnimationFrame(() => openStoryButton.current?.focus()); }
+      if (story) { setStory(false); updateStoryUrl(null); }
       else if (indexOpen) setIndexOpen(false);
       else if (selected !== null) { setSelected(null); api.current?.select(null); requestAnimationFrame(() => lastTrigger.current?.isConnected && lastTrigger.current.focus()); }
     };
@@ -70,7 +92,7 @@ function Journey({ variant }: { variant: Variant }) {
   return <main className="discovery-prototype" data-variant={variant} data-story={story} data-entered={entered}>
     <div className="journey-surface" inert={story} aria-hidden={story || undefined}>
       <header className="discovery-header">
-        <a className="habitta-wordmark" href={`/?variant=${variant}`} aria-label="Habitta, restart this journey">habitta<span>®</span></a>
+        <a className="habitta-wordmark" href={`/?variant=${storyVariant}`} aria-label="Habitta, restart this journey">habitta<span>®</span></a>
         <span className="studio-description">Imagined architecture.<br />A place to explore.</span>
         {entered ? <Button variant="outline" onClick={() => setIndexOpen(!indexOpen)} aria-expanded={indexOpen}>Building index <span aria-hidden="true">{indexOpen ? "−" : "+"}</span></Button> : <span className="header-note">Residential concepts</span>}
       </header>
@@ -96,7 +118,7 @@ function Journey({ variant }: { variant: Variant }) {
         <div className="preview-meta"><span>{building.type}</span><Button variant="ghost" size="icon" onClick={returnToDistrict} aria-label="Return to district">×</Button></div>
         <h2>{building.name}</h2><p>{building.material}</p>
         <div className="residence-teaser"><small>Featured residence</small><h3>{building.residence}</h3></div>
-        <Button ref={openStoryButton} size="lg" onClick={() => setStory(true)}>Discover this home <span aria-hidden="true">↗</span></Button>
+        <Button ref={openStoryButton} size="lg" onClick={() => { setStory(true); updateStoryUrl(selected); }}>Discover this home <span aria-hidden="true">↗</span></Button>
         <Button variant="ghost" onClick={returnToDistrict}>Back to the district</Button>
       </section> : null}
 
@@ -106,11 +128,9 @@ function Journey({ variant }: { variant: Variant }) {
       </footer> : <p className="arrival-footnote">Habitta is a fictional architecture studio.</p>}
     </div>
 
-    {story && building ? <article className="prototype-story">
-      <header><span className="habitta-wordmark">habitta</span><Button variant="outline" onClick={closeStory}>Back to {building.name}</Button></header>
-      <div className="story-content"><p>{building.name} / Featured residence</p><h1 ref={storyHeading} tabIndex={-1}>{building.residence}</h1><p>{building.description}</p><div className="story-placeholder"><span className={`building-silhouette silhouette-${selected}`} aria-hidden="true" /><p>Residence imagery and the detailed story<br />will be explored in the next prototype.</p></div><p className="fiction-note">An imagined residential concept by Habitta.</p><Button onClick={returnToDistrict}>Return to the district</Button></div>
-    </article> : null}
+    {story && selected !== null ? <ResidencePrototype key={selected} buildingIndex={selected} variant={storyVariant} onBack={closeStory} onDistrict={returnToDistrict} /> : null}
+    <PrototypeSwitcher current={storyVariant} options={storyVariants} label="Residence story prototype" />
 
-    {process.env.NODE_ENV !== "production" ? <details className="prototype-inspector"><summary>Prototype notes & state</summary><p>{variants.find(item => item.key === variant)?.hypothesis}</p><p>Draft geometry, names, and content. The question is arrival → discovery → building → residence → return.</p><output>Variant: {variant}<br />Stage: {story ? "residence" : selected !== null ? "building" : entered ? "district" : "arrival"}<br />Selected: {building?.name ?? "none"}<br />Motion: {reduced ? "off" : "on"}<br />Index: {indexOpen ? "open" : "closed"}<br />Scene: {ready ? "ready or fallback" : "loading"}</output></details> : null}
+    {process.env.NODE_ENV !== "production" && !story ? <details className="prototype-inspector"><summary>Prototype notes & state</summary><p>{variants.find(item => item.key === variant)?.hypothesis}</p><p>Select a building and discover its home to compare residence stories.</p><output>Story variant: {storyVariant}<br />Stage: {selected !== null ? "building" : "district"}<br />Selected: {building?.name ?? "none"}<br />Motion: {reduced ? "off" : "on"}<br />Index: {indexOpen ? "open" : "closed"}<br />Scene: {ready ? "ready or fallback" : "loading"}</output></details> : null}
   </main>;
 }
