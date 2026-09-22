@@ -46,6 +46,7 @@
   --color-scene-sky-horizon: var(--color-paper);
   --color-scene-sky-zenith: #b9c7cf;
   --color-scene-cloud: #faf8f3;
+  --color-scene-sun: #fff1dc;
   --color-scene-fog: var(--color-paper);
   --color-scene-terrain-grass: #a5ae95;
   --color-scene-terrain-lane: #cfc7b6;

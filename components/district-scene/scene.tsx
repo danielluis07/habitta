@@ -2,12 +2,14 @@
 
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { getConsoleFunction, setConsoleFunction, Vector3, type Object3D } from "three";
+import { getConsoleFunction, NeutralToneMapping, setConsoleFunction, Vector3, type Object3D } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import WebGL from "three/addons/capabilities/WebGL.js";
+import { Atmosphere, cameraFar, type AtmosphereColors } from "@/components/district-scene/atmosphere";
 import { DistrictCamera } from "@/components/district-scene/camera";
 import { SceneLoading, type SceneProps } from "@/components/district-scene";
 import { bindBuilding, configureLoader, useDetailedBuilding } from "@/components/district-scene/models";
+import { pixelRatioCap } from "@/components/district-scene/pixel-ratio";
 import { Button } from "@/components/ui/button";
 import { collection, type ConceptSlug } from "@/lib/collection";
 import { selectedSlug } from "@/lib/journey";
@@ -129,13 +131,11 @@ function SupportedScene(props: SceneProps) {
     setPlaceholder(isPlaceholder);
     setReady(true);
   }, []);
-  const colors = useMemo(() => {
+  const [maxPixelRatio] = useState(() => pixelRatioCap());
+  const colors = useMemo((): AtmosphereColors => {
     const style = getComputedStyle(document.documentElement);
-    return {
-      paper: style.getPropertyValue("--color-paper").trim(),
-      sky: style.getPropertyValue("--color-scene-sky-zenith").trim(),
-      cloud: style.getPropertyValue("--color-scene-cloud").trim(),
-    };
+    const token = (name: string) => style.getPropertyValue(`--color-scene-${name}`).trim();
+    return { fog: token("fog"), zenith: token("sky-zenith"), cloud: token("cloud"), sun: token("sun") };
   }, []);
 
   useEffect(() => {
@@ -160,18 +160,18 @@ function SupportedScene(props: SceneProps) {
       <Canvas
         ref={canvasRef}
         frameloop={props.stage.name === "residence" ? "never" : "demand"}
-        dpr={[1, 1.5]}
-        camera={{ fov: 42, near: 0.5, far: 3000 }}
-        gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
-        style={{ background: `linear-gradient(${colors.sky}, ${colors.paper} 70%)` }}
+        dpr={[1, maxPixelRatio]}
+        camera={{ fov: 42, near: 0.5, far: cameraFar }}
+        // Khronos PBR Neutral keeps the buildings' true material hues; the
+        // warmth comes from the sun, not from a tint over the image.
+        gl={{ antialias: true, alpha: true, powerPreference: "low-power", toneMapping: NeutralToneMapping }}
+        style={{ background: colors.fog }}
         onCreated={({ gl }) => {
           // Labels are the keyboard interface; the canvas has no tab stop.
           gl.domElement.setAttribute("aria-hidden", "true");
           gl.domElement.tabIndex = -1;
         }}>
-        <fog attach="fog" args={[colors.paper, 500, 1800]} />
-        <hemisphereLight args={[colors.cloud, colors.paper, 2]} />
-        <directionalLight color={colors.cloud} position={[100, 160, 100]} intensity={2.5} />
+        <Atmosphere colors={colors} motion={props.motion} />
         <Suspense fallback={null}>
           <DistrictModel {...props} labels={labels} onReady={onReady} />
         </Suspense>
