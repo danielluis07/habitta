@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react
 import { BuildingIndex } from "@/components/building-index";
 import { BuildingOverview } from "@/components/building-overview";
 import { ControlBar, ControlBarButton, ControlSwitch } from "@/components/control-bar";
-import { DistrictScene } from "@/components/district-scene";
+import { DistrictScene, type SceneHandle } from "@/components/district-scene";
 import { ResidenceStory } from "@/components/residence-story";
 import { SimpleViewNotice } from "@/components/simple-view-notice";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,9 @@ type ExplorationProps = {
 };
 
 export function Exploration({ initialStage = districtStage }: ExplorationProps) {
-  const [journey, dispatch] = useJourney(initialStage);
+  const sceneRef = useRef<SceneHandle>(null);
+  const readViewpoint = useCallback(() => sceneRef.current?.getViewpoint() ?? null, []);
+  const [journey, dispatch] = useJourney(initialStage, readViewpoint);
   const motion = useMotion(journey.motionChoice);
   const simpleView = journey.viewMode === "simple";
   const [indexOpen, setIndexOpen] = useState(false);
@@ -205,6 +207,17 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
 
         {/* A story replaces the district view, which keeps its scene and index state behind it. */}
         <div hidden={storyConcept !== undefined}>
+          {sceneWanted && !simpleView ? (
+            <DistrictScene
+              stage={stage}
+              savedViewpoint={journey.savedViewpoint}
+              viewpointRef={sceneRef}
+              onSelect={selectBuilding}
+              motion={motion}
+              onSimpleView={switchToSimpleView}
+            />
+          ) : null}
+
           <section
             aria-labelledby="arrival-heading"
             className="px-4 pt-16 pb-16 md:px-10 md:pt-24 md:pb-24">
@@ -218,10 +231,6 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
               district, not a real development or listing.
             </p>
           </section>
-
-          {sceneWanted && !simpleView ? (
-            <DistrictScene motion={motion} onSimpleView={switchToSimpleView} />
-          ) : null}
 
           {overviewConcept ? (
             <BuildingOverview

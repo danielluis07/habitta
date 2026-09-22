@@ -1,0 +1,37 @@
+# District scene
+
+The first scene path implements [#21](https://github.com/danielluis07/habitta/issues/21). The DOM journey still owns selection, focus, overview/story content, and URLs. `components/district-scene/index.tsx` is the lazy, client-only boundary; it imports no Three.js code. Journey tests replace `scene.tsx` at that boundary.
+
+The scene loads only `/models/district-low.glb`, with the bundled Three.js Meshopt decoder. Selection targets and label anchors come from the collection's [runtime bindings](runtime-assets.md). Camera framing follows the model bounds, so replacement exports do not require per-building camera coordinates. Labels are ordinary DOM buttons projected from the anchors on each rendered frame; mesh descendants also accept pointer selection. Offscreen labels leave the tab order, and the canvas itself has no tab stop.
+
+The journey reads the current camera position and look-at target before a selection from the district, including index selection and browser history. The saved viewpoint survives building switches and residence stories. Returning to the district restores it; a direct building link returns to the default framing. Motion uses a 1.4-second ease-in-out, or an immediate snap with motion off. Rendering is on demand and stops behind a residence story. A direct residence URL does not request the scene or its GLB.
+
+Loading feedback covers both the JavaScript chunk and the model. Missing WebGL 2, model/chunk errors, and context loss use the existing simple-view intent without losing the selected concept. Placeholder exports retain a visible hatched disclosure. The selected scene reserves space beside the desktop overview and above the mobile bottom sheet.
+
+Orbit/zoom controls and the explicit Reset view control belong to #22. Detailed model replacement, the cloud deck, and broader device/performance work remain separate tasks.
+
+## Verification
+
+Automated checks:
+
+```sh
+bun test
+bun run lint
+bunx tsc --noEmit
+bun run build
+```
+
+Seam 1 covers scene-label selection, keyboard focus return, leaving the scene by Tab, viewpoint capture through the index and browser history, preservation through stories/building switches, direct links, and reduced-motion input. The full suite contains 99 tests. The production build also runs Khronos validation, binding checks, and asset budgets.
+
+Local browser review on 2026-09-22 used desktop Chromium at 1440 × 1000 and mobile-emulated Chromium at 390 × 844, with touch and reduced motion. Screenshots were inspected locally; browser scripts are temporary review tooling, not a new WebGL E2E suite. Checks covered:
+
+- All three visible labels; keyboard selection, Tab exit, and focus return.
+- Canvas mesh click selection and touch label selection.
+- Selection framing, overview/story return, direct building links, and no horizontal overflow.
+- Selected mobile labels staying above the bottom sheet.
+- Loading feedback with the GLB deliberately delayed, while the index remained usable.
+- Camera restoration after both overview and story, and immediate reduced-motion changes.
+- Asset failure and context loss preserving the DOM journey; unsupported WebGL 2 opening simple view.
+- Direct residence arrival without a canvas or GLB request.
+
+**Still required:** manual review on physical mobile browsers (iOS Safari and Android Chrome), representative GPU hardware, and a screen reader. Desktop/mobile emulation with software WebGL does not establish mobile-browser compatibility or device performance. The issue's physical mobile verification remains open.

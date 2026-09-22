@@ -7,6 +7,7 @@ import {
   journeyReducer,
   type JourneyIntent,
   type JourneyStage,
+  type Viewpoint,
 } from "@/lib/journey";
 
 // Runs the exploration journey in the browser. Each intent that changes the
@@ -14,11 +15,19 @@ import {
 // intent, so the address bar and the journey never disagree. Native history
 // calls keep the district mounted: Next.js syncs them into its router without
 // a navigation.
-export function useJourney(initialStage: JourneyStage) {
+export function useJourney(initialStage: JourneyStage, readViewpoint?: () => Viewpoint | null) {
   const [state, setState] = useState(() => initialJourney(initialStage));
   const stateRef = useRef(state);
 
   const dispatch = useCallback((intent: JourneyIntent) => {
+    // Capture before any selection changes the camera, regardless of whether
+    // it came from a scene label, the index, or browser back/forward.
+    if (
+      stateRef.current.stage.name === "district" &&
+      (intent.type === "selectBuilding" || intent.type === "followUrl")
+    ) {
+      intent = { ...intent, viewpoint: intent.viewpoint ?? readViewpoint?.() ?? undefined };
+    }
     const next = journeyReducer(stateRef.current, intent);
     if (next === stateRef.current) return;
     stateRef.current = next;
@@ -28,7 +37,7 @@ export function useJourney(initialStage: JourneyStage) {
       window.history.pushState(null, "", path);
     }
     setState(next);
-  }, []);
+  }, [readViewpoint]);
 
   useEffect(() => {
     function onPopState() {
