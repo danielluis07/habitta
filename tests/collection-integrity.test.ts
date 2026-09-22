@@ -156,3 +156,11 @@ test("every referenced image exists in public/", () => {
     }
   }
 });
+
+test("published concept images and diagrams have replaced the development placeholders", () => {
+  for (const concept of collection) {
+    for (const image of imagesOf(concept)) {
+      expect(image.placeholder).toBe(false);
+    }
+  }
+});

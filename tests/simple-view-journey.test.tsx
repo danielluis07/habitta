@@ -317,7 +317,7 @@ describe("building index", () => {
       expect(
         within(entry).getByRole("img", { name: concept.building.exteriorStill.alt }),
       ).toBeInTheDocument();
-      expect(within(entry).getByText("Placeholder")).toBeInTheDocument();
+      expect(within(entry).queryByText("Placeholder")).not.toBeInTheDocument();
       expect(within(entry).getByText(concept.building.description)).toBeInTheDocument();
       expect(within(entry).getByText(residence)).toBeInTheDocument();
     }

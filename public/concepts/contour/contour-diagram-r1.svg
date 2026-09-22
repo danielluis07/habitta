@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Schematic arrangement of the Terrace residence">
+  <rect width="1200" height="800" fill="#F4F1EA"/>
+  <text x="100" y="90" font-family="Georgia, serif" font-size="40" fill="#1F1D1A">Terrace</text>
+  <text x="100" y="130" font-family="Arial, sans-serif" font-size="17" fill="#5E5850">South terrace · western end · level 2</text>
+  <text x="1060" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#1F1D1A">N ↑</text>
+
+    <rect x="100" y="190" width="215" height="140" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="207.5" y="267" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Bedroom 2</text>
+    <rect x="100" y="330" width="215" height="140" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="207.5" y="407" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Bedroom 3</text>
+    <rect x="315" y="190" width="390" height="115" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="510" y="254.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Services</text>
+    <rect x="315" y="305" width="390" height="165" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="510" y="394.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Hall + entry</text>
+    <rect x="705" y="190" width="395" height="200" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="902.5" y="297" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Kitchen + dining</text>
+    <rect x="100" y="470" width="605" height="130" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="402.5" y="542" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Living</text>
+    <rect x="705" y="390" width="395" height="210" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="902.5" y="502" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Main bedroom</text>
+    <rect x="100" y="600" width="1000" height="90" fill="#DCE0D3" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="600" y="652" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Deep south terrace</text>
+  <text x="100" y="750" font-family="Arial, sans-serif" font-size="16" fill="#5E5850">SCHEMATIC · NOT TO SCALE</text>
+</svg>

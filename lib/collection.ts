@@ -3,8 +3,7 @@
 //
 // Copy below is production copy for Crest, Contour and Grove, written to the
 // accepted architectural brief and comparison board reviewed at commit
-// 0148994. Images stay development placeholders until the production
-// visualization workflow replaces them.
+// 0148994. Revision 1 editorial images are described in docs/IMAGE_GENERATION.md.
 
 import {
   getProvenanceEntry,
@@ -126,19 +125,19 @@ function sceneBinding(slug: ConceptSlug): SceneBinding {
 }
 
 const crestContext = visualization(
-  "crest-building-context-r0",
+  "crest-building-context-r1",
   "Crest from the southwest: a slender twelve-storey tower of pale vertical piers and recessed loggias on a stone plinth along the northwest ridge.",
   "The Horizon residence sits behind the level-10 loggia in the southwest bay.",
 );
 
 const contourContext = visualization(
-  "contour-building-context-r0",
+  "contour-building-context-r1",
   "Contour from downhill to the southwest: four long concrete terraces stepping up the eastern hillside above a stone retaining base.",
   "The Terrace residence is the western home on the second step.",
 );
 
 const groveContext = visualization(
-  "grove-building-context-r0",
+  "grove-building-context-r1",
   "Grove from above the southwest: a two-storey ring of lime render and buff brick around an open planted court on the lower bench.",
   "The Garden residence occupies the northeast ground-floor corner of the court.",
 );
@@ -187,27 +186,27 @@ export const collection: readonly Concept[] = [
       heightM: 42,
     },
     diagram: {
-      src: "/concepts/crest/crest-diagram-r0-placeholder.svg",
+      src: "/concepts/crest/crest-diagram-r1.svg",
       width: 1200,
       height: 800,
-      alt: "Schematic arrangement of the Horizon residence, north up. Entry from the north into a central hall. Kitchen and dining in the northwest open to the living room in the southwest, which opens south onto the loggia. Bathrooms, laundry and storage along the north wall. Second bedroom in the northeast with an east window; main bedroom in the southeast with a south window.",
-      placeholder: true,
+      alt: "Schematic arrangement of the Horizon residence, north up. Kitchen and dining are northwest, living is southwest beside the south loggia, services and hall are central, bedroom 2 is northeast, and the main bedroom is southeast.",
+      placeholder: false,
     },
     visualizations: {
       living: visualization(
-        "crest-living-r0",
+        "crest-living-r1",
         "The Horizon living room looking southwest across oak floors and the kitchen edge, through a three-panel bronze opening to the recessed loggia and the valley beyond.",
       ),
       outdoor: visualization(
-        "crest-outdoor-r0",
+        "crest-outdoor-r1",
         "The Horizon loggia seen from its east end: limestone paving, a solid pale parapet with a bronze rail, the slab above, and a glimpse back into the living room.",
       ),
       quietRoom: visualization(
-        "crest-quiet-room-r0",
+        "crest-quiet-room-r1",
         "The Horizon main bedroom from its doorway, looking toward the southeast corner and a broad south window over the valley.",
       ),
       materialStudy: visualization(
-        "crest-material-study-r0",
+        "crest-material-study-r1",
         "Close detail of the Horizon living-to-loggia sill, where pale oak meets limestone paving at a bronze track beside the concrete reveal.",
       ),
       buildingContext: crestContext,
@@ -258,27 +257,27 @@ export const collection: readonly Concept[] = [
       heightM: 14,
     },
     diagram: {
-      src: "/concepts/contour/contour-diagram-r0-placeholder.svg",
+      src: "/concepts/contour/contour-diagram-r1.svg",
       width: 1200,
       height: 800,
-      alt: "Schematic arrangement of the Terrace residence, north up. Entry from the north into a hall. Bathrooms, laundry and storage along the north side. Two bedrooms on the west side with west windows. Living in the southwest corner, kitchen and dining beside it, and the main bedroom in the southeast, all opening south onto a terrace that runs the full width of the home.",
-      placeholder: true,
+      alt: "Schematic arrangement of the Terrace residence, north up. Two smaller bedrooms occupy the west side, services are north of the central hall, kitchen and dining are northeast, living is southwest, and the main bedroom is southeast. A deep terrace runs across the south side.",
+      placeholder: false,
     },
     visualizations: {
       living: visualization(
-        "contour-living-r0",
+        "contour-living-r1",
         "The Terrace living and dining space looking southeast along terrazzo floors and a four-panel glass wall, onto the deep terrace and the valley.",
       ),
       outdoor: visualization(
-        "contour-outdoor-r0",
+        "contour-outdoor-r1",
         "The Terrace residence terrace from its southwest corner, looking back to the living and bedroom openings past a planted edge, a timber screen and the stepped floor above.",
       ),
       quietRoom: visualization(
-        "contour-quiet-room-r0",
+        "contour-quiet-room-r1",
         "The Terrace main bedroom from its doorway, oak floor leading to a south opening onto a screened corner of the terrace.",
       ),
       materialStudy: visualization(
-        "contour-material-study-r0",
+        "contour-material-study-r1",
         "Close detail of the Terrace living threshold: terrazzo inside meets textured stone paving at a bronze sill, beside the timber screen, under board-textured concrete.",
       ),
       buildingContext: contourContext,
@@ -329,27 +328,27 @@ export const collection: readonly Concept[] = [
       heightM: 7,
     },
     diagram: {
-      src: "/concepts/grove/grove-diagram-r0-placeholder.svg",
+      src: "/concepts/grove/grove-diagram-r1.svg",
       width: 1200,
       height: 800,
-      alt: "Schematic arrangement of the Garden residence, north up. Entry from the court-side path into a central hall. Kitchen along the north, living and dining on the west opening west onto a private patio. Bathrooms, laundry and storage on the north service edge. Second bedroom in the northeast and main bedroom in the southeast, both with east windows onto the outer garden.",
-      placeholder: true,
+      alt: "Schematic arrangement of the Garden residence, north up. The private patio is west of living and dining, with kitchen northwest, services north, and a central hall. Bedroom 2 is northeast and the main bedroom southeast.",
+      placeholder: false,
     },
     visualizations: {
       living: visualization(
-        "grove-living-r0",
+        "grove-living-r1",
         "The Garden living room looking west across a clay tile floor, through a two-panel timber opening to the private patio and the shared court garden beyond.",
       ),
       outdoor: visualization(
-        "grove-outdoor-r0",
+        "grove-outdoor-r1",
         "The Garden residence private patio from its west edge, looking back into the living room past a low brick wall and a timber gate to the shared path.",
       ),
       quietRoom: visualization(
-        "grove-quiet-room-r0",
+        "grove-quiet-room-r1",
         "The Garden main bedroom from its doorway, looking east to a deep window with a timber shutter and the planted outer garden.",
       ),
       materialStudy: visualization(
-        "grove-material-study-r0",
+        "grove-material-study-r1",
         "Close detail of the Garden living-to-patio threshold: clay tile, a timber frame set in a lime render reveal, and the buff brick patio wall beside it.",
       ),
       buildingContext: groveContext,

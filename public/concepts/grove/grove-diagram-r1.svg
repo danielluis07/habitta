@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Schematic arrangement of the Garden residence">
+  <rect width="1200" height="800" fill="#F4F1EA"/>
+  <text x="100" y="90" font-family="Georgia, serif" font-size="40" fill="#1F1D1A">Garden</text>
+  <text x="100" y="130" font-family="Arial, sans-serif" font-size="17" fill="#5E5850">Court-facing patio · ground floor</text>
+  <text x="1060" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#1F1D1A">N ↑</text>
+
+    <rect x="100" y="340" width="200" height="280" fill="#DCE0D3" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="200" y="487" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Private patio</text>
+    <rect x="300" y="190" width="280" height="150" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="440" y="272" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Kitchen</text>
+    <rect x="580" y="190" width="230" height="150" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="695" y="272" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Services</text>
+    <rect x="810" y="190" width="290" height="210" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="955" y="302" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Bedroom 2</text>
+    <rect x="300" y="340" width="280" height="280" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="440" y="487" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Living + dining</text>
+    <rect x="580" y="340" width="230" height="280" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="695" y="487" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Hall + entry</text>
+    <rect x="810" y="400" width="290" height="220" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="955" y="517" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Main bedroom</text>
+  <text x="100" y="750" font-family="Arial, sans-serif" font-size="16" fill="#5E5850">SCHEMATIC · NOT TO SCALE</text>
+</svg>

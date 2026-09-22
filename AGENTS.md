@@ -18,7 +18,11 @@ English.
 
 # Conventions
 
-Prefer the @ alias for imports (see docs/CONVENTIONS.md)
+Prefer the @ alias for imports (configured in tsconfig.json).
+
+# Project organization
+
+See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for the folder map and content flow.
 
 # Design Guidelines
 

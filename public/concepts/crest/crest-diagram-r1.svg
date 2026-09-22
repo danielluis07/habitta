@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Schematic arrangement of the Horizon residence">
+  <rect width="1200" height="800" fill="#F4F1EA"/>
+  <text x="100" y="90" font-family="Georgia, serif" font-size="40" fill="#1F1D1A">Horizon</text>
+  <text x="100" y="130" font-family="Arial, sans-serif" font-size="17" fill="#5E5850">South-facing loggia · level 10</text>
+  <text x="1060" y="90" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#1F1D1A">N ↑</text>
+
+    <rect x="100" y="190" width="330" height="190" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="265" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Kitchen + dining</text>
+    <rect x="430" y="190" width="300" height="120" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="580" y="257" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Services</text>
+    <rect x="730" y="190" width="370" height="190" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="915" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Bedroom 2</text>
+    <rect x="100" y="380" width="330" height="190" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="265" y="482" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Living</text>
+    <rect x="430" y="310" width="300" height="260" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="580" y="447" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Hall + entry</text>
+    <rect x="730" y="380" width="370" height="190" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="915" y="482" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Main bedroom</text>
+    <rect x="100" y="570" width="330" height="120" fill="#DCE0D3" stroke="#1F1D1A" stroke-width="3"/>
+    <text x="265" y="637" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#1F1D1A">Recessed loggia</text>
+  <text x="100" y="750" font-family="Arial, sans-serif" font-size="16" fill="#5E5850">SCHEMATIC · NOT TO SCALE</text>
+</svg>
