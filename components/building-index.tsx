@@ -1,8 +1,9 @@
 import type { MouseEvent, Ref } from "react";
-import { ConceptStill } from "@/components/concept-still";
+import { ConceptFigure } from "@/components/concept-figure";
 import { Button } from "@/components/ui/button";
 import { collection, type ConceptSlug } from "@/lib/collection";
 import { journeyPath } from "@/lib/journey";
+import { isPlainClick } from "@/lib/utils";
 
 type BuildingIndexProps = {
   id: string;
@@ -26,9 +27,7 @@ export function BuildingIndex({
 
   function select(event: MouseEvent<HTMLAnchorElement>, slug: ConceptSlug) {
     // Modified clicks still open the building's own URL in a new tab or window.
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
+    if (!isPlainClick(event)) return;
     event.preventDefault();
     onSelect(slug, event.currentTarget);
   }
@@ -60,9 +59,10 @@ export function BuildingIndex({
               <article
                 aria-labelledby={nameId}
                 className="relative grid gap-4 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-10 md:py-6">
-                <ConceptStill
+                <ConceptFigure
                   image={concept.building.exteriorStill}
                   sizes="(min-width: 640px) 40vw, 100vw"
+                  imageClassName="aspect-3/2 object-cover"
                 />
                 <div className="flex flex-col gap-2">
                   <p className="type-eyebrow text-ink-muted">{concept.building.role}</p>

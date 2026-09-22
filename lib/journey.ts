@@ -35,6 +35,11 @@ export type JourneyIntent =
       viewpoint?: Viewpoint;
     }
   | { type: "returnToDistrict" }
+  /** Opens the selected building's featured residence. Only a building overview offers it. */
+  | { type: "openResidence" }
+  | { type: "backToBuilding" }
+  /** Leaves the end of a residence story for the district, to pick the next concept. */
+  | { type: "continueExploring" }
   | { type: "resetView" }
   /** The URL changed underneath the journey, e.g. through browser back/forward. */
   | { type: "followUrl"; path: string };
@@ -53,6 +58,15 @@ export function journeyReducer(state: JourneyState, intent: JourneyIntent): Jour
       return { stage, savedViewpoint: intent.viewpoint ?? null };
     }
     case "returnToDistrict":
+      return { ...state, stage: districtStage };
+    case "openResidence":
+      if (state.stage.name !== "building") return state;
+      return { ...state, stage: { name: "residence", slug: state.stage.slug } };
+    case "backToBuilding":
+      if (state.stage.name !== "residence") return state;
+      return { ...state, stage: { name: "building", slug: state.stage.slug } };
+    case "continueExploring":
+      if (state.stage.name !== "residence") return state;
       return { ...state, stage: districtStage };
     case "resetView":
       return initialJourney();
