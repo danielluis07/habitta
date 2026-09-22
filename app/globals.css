@@ -5,6 +5,31 @@
 /* Light theme only. Nothing carries .dark, so dark: utilities in shadcn components never apply. */
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * The in-page motion control overrides the system preference: inside
+ * [data-motion], its value decides. Without it, the system preference does.
+ */
+@custom-variant motion-safe {
+  &:where([data-motion="on"], [data-motion="on"] *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    &:where(:not([data-motion="off"], [data-motion="off"] *)) {
+      @slot;
+    }
+  }
+}
+@custom-variant motion-reduce {
+  &:where([data-motion="off"], [data-motion="off"] *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:where(:not([data-motion="on"], [data-motion="on"] *)) {
+      @slot;
+    }
+  }
+}
+
 /* Habitta palette (DESIGN.md). The chrome is paper and ink only; there is no chromatic accent. */
 @theme {
   --color-*: initial;

@@ -9,7 +9,8 @@ type BuildingIndexProps = {
   id: string;
   hidden: boolean;
   headingRef: Ref<HTMLHeadingElement>;
-  onClose: () => void;
+  /** Closes the index. Absent in simple view, where the index is the page. */
+  onClose?: () => void;
   selectedSlug: ConceptSlug | undefined;
   /** Selects a building in place. `trigger` is the entry's link, for returning focus. */
   onSelect: (slug: ConceptSlug, trigger: HTMLElement) => void;
@@ -46,9 +47,11 @@ export function BuildingIndex({
           className="scroll-mt-6 type-heading">
           Building index
         </h2>
-        <Button variant="ghost" aria-label="Close building index" onClick={onClose}>
-          Close
-        </Button>
+        {onClose ? (
+          <Button variant="ghost" aria-label="Close building index" onClick={onClose}>
+            Close
+          </Button>
+        ) : null}
       </div>
       <ol className="max-w-6xl">
         {collection.map((concept) => {
