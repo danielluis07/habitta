@@ -1,10 +1,14 @@
-import type { Ref } from "react";
-import { Button } from "@/components/ui/button";
+import type { MouseEvent, Ref } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { Concept } from "@/lib/collection";
+import { journeyPath } from "@/lib/journey";
 
 type BuildingOverviewProps = {
   concept: Concept;
   headingRef: Ref<HTMLHeadingElement>;
+  openResidenceRef: Ref<HTMLAnchorElement>;
+  /** Opens the featured residence in place. Modified clicks follow the link instead. */
+  onOpenResidence: (event: MouseEvent<HTMLAnchorElement>) => void;
   onClose: () => void;
 };
 
@@ -12,7 +16,13 @@ const headingId = "building-overview-heading";
 
 // A side panel on wide screens and a bottom sheet on narrow ones. The visitor
 // stays in the district while it is open.
-export function BuildingOverview({ concept, headingRef, onClose }: BuildingOverviewProps) {
+export function BuildingOverview({
+  concept,
+  headingRef,
+  openResidenceRef,
+  onOpenResidence,
+  onClose,
+}: BuildingOverviewProps) {
   const { building, featuredResidence } = concept;
 
   return (
@@ -35,9 +45,18 @@ export function BuildingOverview({ concept, headingRef, onClose }: BuildingOverv
         </p>
         <p className="mt-1 type-body-sm text-ink-muted">{featuredResidence.position}</p>
       </div>
-      <Button variant="outline" className="mt-6" onClick={onClose}>
-        Return to district
-      </Button>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a
+          ref={openResidenceRef}
+          href={journeyPath({ name: "residence", slug: concept.slug })}
+          onClick={onOpenResidence}
+          className={buttonVariants()}>
+          Open residence
+        </a>
+        <Button variant="outline" onClick={onClose}>
+          Return to district
+        </Button>
+      </div>
     </section>
   );
 }

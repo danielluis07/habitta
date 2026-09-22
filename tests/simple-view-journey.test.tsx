@@ -1,19 +1,24 @@
 import { describe, expect, mock, test } from "bun:test";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
 // Seam 1: the real page in simple view. The 3D scene is swapped out at its
-// lazy, client-only module boundary, never stubbed from the inside.
+// lazy, client-only module boundary, never stubbed from the inside. The
+// stand-in only marks where the scene would load.
 mock.module("@/components/district-scene/scene", () => ({
-  default: () => null,
+  default: () => <div data-testid="district-scene" />,
 }));
 
 const { default: Home } = await import("@/app/page");
 const { default: BuildingPage, generateMetadata: buildingMetadata } = await import(
   "@/app/buildings/[slug]/page"
 );
-const { getConcept } = await import("@/lib/collection");
+const { default: ResidencePage, generateMetadata: residenceMetadata } = await import(
+  "@/app/buildings/[slug]/residence/page"
+);
+const { collection, getConcept } = await import("@/lib/collection");
 
 // Opens `path` the way a visitor arriving on it would: the URL first, then the
 // route's page, letting the lazy scene boundary settle.
@@ -28,12 +33,16 @@ async function renderHome() {
   await renderAt("/", <Home />);
 }
 
+function routeProps(slug: string) {
+  return { params: Promise.resolve({ slug }), searchParams: Promise.resolve({}) };
+}
+
 async function renderBuildingLink(slug: string) {
-  const page = await BuildingPage({
-    params: Promise.resolve({ slug }),
-    searchParams: Promise.resolve({}),
-  });
-  await renderAt(`/buildings/${slug}`, page);
+  await renderAt(`/buildings/${slug}`, await BuildingPage(routeProps(slug)));
+}
+
+async function renderResidenceLink(slug: string) {
+  await renderAt(`/buildings/${slug}/residence`, await ResidencePage(routeProps(slug)));
 }
 
 function indexToggle() {
@@ -77,6 +86,39 @@ async function tabTo(user: UserEvent, target: HTMLElement) {
     await user.tab();
   }
   expect(target).toHaveFocus();
+}
+
+function story(residence: string) {
+  return screen.getByRole("article", { name: residence });
+}
+
+function queryStory(residence: string) {
+  return screen.queryByRole("article", { name: residence });
+}
+
+function detailsToggle() {
+  return screen.getByRole("button", { name: "Dimensions and diagram" });
+}
+
+function openResidenceLink(building: string) {
+  return within(overview(building)).getByRole("link", { name: "Open residence" });
+}
+
+async function openStory(user: UserEvent, building: string) {
+  await openIndex(user);
+  await user.click(indexEntryLink(building));
+  await user.click(openResidenceLink(building));
+}
+
+// Matches the element whose whole text, children included, is `content`.
+function wholeText(content: string) {
+  return (_: string, element: Element | null) => element?.textContent === content;
+}
+
+function expectInDocumentOrder(nodes: HTMLElement[]) {
+  const all = Array.from(document.querySelectorAll("*"));
+  const positions = nodes.map((node) => all.indexOf(node));
+  expect(positions).toEqual(positions.toSorted((a, b) => a - b));
 }
 
 describe("arrival", () => {
@@ -270,10 +312,7 @@ describe("building URL", () => {
   });
 
   test("a direct link names the building in the page metadata", async () => {
-    const metadata = await buildingMetadata({
-      params: Promise.resolve({ slug: "grove" }),
-      searchParams: Promise.resolve({}),
-    });
+    const metadata = await buildingMetadata(routeProps("grove"));
 
     expect(metadata.title).toBe("Grove");
     expect(metadata.description).toBe(getConcept("grove")!.building.description);
@@ -311,5 +350,312 @@ describe("building URL", () => {
     await goForward();
     await waitFor(() => expect(window.location.pathname).toBe("/buildings/crest"));
     expect(overview("Crest")).toBeInTheDocument();
+  });
+});
+
+describe("opening the featured residence", () => {
+  test("the overview's Open residence action opens the story with its heading focused", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+
+    await openStory(user, "Crest");
+
+    expect(within(story("Horizon")).getByRole("heading", { level: 1, name: "Horizon" })).toHaveFocus();
+    expect(window.location.pathname).toBe("/buildings/crest/residence");
+    // The story replaces the district view rather than stacking on it.
+    expect(queryOverview("Crest")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 1 }).map((h) => h.textContent)).toEqual([
+      "Horizon",
+    ]);
+  });
+
+  test("opens from the keyboard", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openIndex(user);
+    await user.click(indexEntryLink("Grove"));
+
+    await tabTo(user, openResidenceLink("Grove"));
+    await user.keyboard("{Enter}");
+
+    expect(within(story("Garden")).getByRole("heading", { level: 1 })).toHaveFocus();
+  });
+
+  test("each building leads to exactly one featured residence, with no chooser", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openIndex(user);
+
+    for (const concept of collection) {
+      await user.click(indexEntryLink(concept.building.name));
+
+      const links = within(overview(concept.building.name)).getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAttribute("href", `/buildings/${concept.slug}/residence`);
+    }
+  });
+});
+
+describe.each(collection.map((concept) => [concept.featuredResidence.name, concept] as const))(
+  "the %s story",
+  (_, concept) => {
+    const { building, featuredResidence: residence, visualizations, diagram } = concept;
+
+    test("renders its sections in the fixed order", async () => {
+      await renderResidenceLink(concept.slug);
+      const article = story(residence.name);
+      const text = (content: string) => within(article).getByText(content);
+      const image = (alt: string) => within(article).getByRole("img", { name: alt });
+      const heading = (name: string) => within(article).getByRole("heading", { level: 2, name });
+
+      expect(
+        within(article)
+          .getAllByRole("heading", { level: 2 })
+          .map((h) => h.textContent),
+      ).toEqual([
+        "The idea",
+        "The arrangement",
+        "Room by room",
+        "Materials",
+        `Within ${building.name}`,
+        "More in the district",
+      ]);
+
+      expectInDocumentOrder([
+        // 1. Identification, with the living visualization as the opening image
+        within(article).getByRole("heading", { level: 1, name: residence.name }),
+        within(article).getByText(wholeText(`${building.name} · ${building.role}`)),
+        image(visualizations.living.alt),
+        text(residence.roomStories.living),
+        // 2. Design idea and plain-language arrangement
+        heading("The idea"),
+        text(residence.designIdea),
+        heading("The arrangement"),
+        text(residence.arrangement),
+        // 3. The outdoor and quiet-room visualizations with their room stories
+        heading("Room by room"),
+        image(visualizations.outdoor.alt),
+        text(residence.roomStories.outdoor),
+        image(visualizations.quietRoom.alt),
+        text(residence.roomStories.quietRoom),
+        // 4. Visible materials, the material study, then the collapsed details
+        heading("Materials"),
+        ...residence.materials.map((material) => text(material.name)),
+        image(visualizations.materialStudy.alt),
+        within(article).getByRole("button", { name: "Dimensions and diagram" }),
+        // 5. The home within its building
+        heading(`Within ${building.name}`),
+        image(visualizations.buildingContext.alt),
+        text(residence.buildingRelationship),
+        // 6. The way on through the district
+        heading("More in the district"),
+        within(article).getByRole("button", { name: "Continue exploring" }),
+      ]);
+
+      for (const material of residence.materials) {
+        expect(text(material.location)).toBeVisible();
+      }
+    });
+
+    test("presents the home as an imagined concept and its imagery as concept visualizations", async () => {
+      await renderResidenceLink(concept.slug);
+      const article = story(residence.name);
+
+      expect(within(article).getByText(/Imagined Habitta concept/)).toBeVisible();
+      expect(
+        within(article).getByText(/concept visualizations of the design, not photographs/),
+      ).toBeVisible();
+
+      const figures = within(article).getAllByRole("figure");
+      expect(figures).toHaveLength(5);
+      for (const figure of figures) {
+        expect(figure).toHaveTextContent(/Concept visualization · /);
+      }
+    });
+
+    test("gives every visualization and the diagram meaningful alt text and explicit dimensions", async () => {
+      const user = userEvent.setup();
+      await renderResidenceLink(concept.slug);
+      await user.click(detailsToggle());
+
+      const images = within(story(residence.name)).getAllByRole("img");
+      const expected = [
+        visualizations.living,
+        visualizations.outdoor,
+        visualizations.quietRoom,
+        visualizations.materialStudy,
+        diagram,
+        visualizations.buildingContext,
+      ];
+      expect(images.map((image) => image.getAttribute("alt"))).toEqual(
+        expected.map((image) => image.alt),
+      );
+      images.forEach((image, i) => {
+        expect(image).toHaveAttribute("width", String(expected[i].width));
+        expect(image).toHaveAttribute("height", String(expected[i].height));
+      });
+    });
+
+    test("names the residence in its page metadata, with the opening image as the preview", async () => {
+      const metadata = await residenceMetadata(routeProps(concept.slug));
+      const preview = visualizations.living;
+      const images = [
+        { url: preview.src, width: preview.width, height: preview.height, alt: preview.alt },
+      ];
+
+      expect(metadata.title).toBe(`${residence.name} residence in ${building.name}`);
+      expect(metadata.description).toContain("imagined Habitta concept");
+      expect(metadata.description).toContain(residence.designIdea);
+      expect(metadata.openGraph?.title).toBe(
+        `${residence.name} residence in ${building.name} · Habitta`,
+      );
+      expect(metadata.openGraph?.images).toEqual(images);
+      expect(metadata.twitter?.images).toEqual(images);
+    });
+  },
+);
+
+describe("dimensions and diagram", () => {
+  test("start collapsed and expand from the keyboard, labeled schematic and approximate", async () => {
+    const user = userEvent.setup();
+    await renderResidenceLink("crest");
+    const crest = getConcept("crest")!;
+    const article = story("Horizon");
+
+    expect(detailsToggle()).toHaveAttribute("aria-expanded", "false");
+    expect(within(article).queryByRole("img", { name: crest.diagram.alt })).not.toBeInTheDocument();
+    expect(within(article).getByText("Approx. 140 m²")).not.toBeVisible();
+
+    await tabTo(user, detailsToggle());
+    await user.keyboard("{Enter}");
+
+    expect(detailsToggle()).toHaveAttribute("aria-expanded", "true");
+    expect(within(article).getByRole("img", { name: crest.diagram.alt })).toBeVisible();
+    expect(within(article).getByText("Schematic, not to scale")).toBeVisible();
+    expect(within(article).getByText(/Approximate design targets/)).toBeVisible();
+    for (const figure of ["Approx. 140 m²", "Approx. 22 m²", "Approx. 42 m"]) {
+      expect(within(article).getByText(figure)).toBeVisible();
+    }
+    for (const label of [
+      "Interior area",
+      "Outdoor area",
+      "Bedrooms",
+      "Building storeys",
+      "Building height",
+    ]) {
+      expect(within(article).getByText(label)).toBeVisible();
+    }
+  });
+});
+
+describe("leaving the residence story", () => {
+  test("Back to building returns to that overview with the selection kept", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openStory(user, "Crest");
+
+    await user.click(screen.getByRole("button", { name: "Back to Crest" }));
+
+    expect(queryStory("Horizon")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/buildings/crest");
+    expect(within(overview("Crest")).getByText("Horizon")).toBeInTheDocument();
+    expect(openResidenceLink("Crest")).toHaveFocus();
+    expect(indexEntryLink("Crest")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("Return to district clears the selection and returns focus to the entry that selected it", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openStory(user, "Contour");
+
+    await user.click(screen.getByRole("button", { name: "Return to district" }));
+
+    expect(queryStory("Terrace")).not.toBeInTheDocument();
+    expect(queryOverview("Contour")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+    expect(indexEntryLink("Contour")).toHaveFocus();
+    expect(indexEntryLink("Contour")).not.toHaveAttribute("aria-current");
+  });
+
+  test("Continue exploring at the end of the story opens the building index with nothing selected", async () => {
+    const user = userEvent.setup();
+    await renderResidenceLink("grove");
+
+    await tabTo(user, screen.getByRole("button", { name: "Continue exploring" }));
+    await user.keyboard("{Enter}");
+
+    expect(queryStory("Garden")).not.toBeInTheDocument();
+    expect(queryOverview("Grove")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+    expect(within(buildingIndex()).getByRole("heading", { name: "Building index" })).toHaveFocus();
+    expect(indexToggle()).toHaveAttribute("aria-expanded", "true");
+    expect(indexEntryLink("Grove")).not.toHaveAttribute("aria-current");
+  });
+
+  test("Continue exploring lands on the index even when it was already open", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openStory(user, "Crest");
+
+    await user.click(screen.getByRole("button", { name: "Continue exploring" }));
+
+    expect(within(buildingIndex()).getByRole("heading", { name: "Building index" })).toHaveFocus();
+    expect(window.location.pathname).toBe("/");
+  });
+});
+
+describe("residence URL", () => {
+  test("a direct link renders the story without loading the scene", async () => {
+    const user = userEvent.setup();
+    await renderResidenceLink("grove");
+
+    expect(within(story("Garden")).getByRole("heading", { level: 1, name: "Garden" })).toBeVisible();
+    expect(screen.queryByTestId("district-scene")).not.toBeInTheDocument();
+
+    // The scene loads once the visitor heads back into the district.
+    await user.click(screen.getByRole("button", { name: "Back to Grove" }));
+
+    expect(within(overview("Grove")).getByRole("heading", { name: "Grove" })).toBeInTheDocument();
+    expect(await screen.findByTestId("district-scene")).toBeInTheDocument();
+  });
+
+  test("a direct link server-renders the whole story, including the collapsed details", async () => {
+    const contour = getConcept("contour")!;
+    const html = renderToString(await ResidencePage(routeProps("contour")));
+    // Parse the server's HTML without hydrating it.
+    const { container } = render(<div dangerouslySetInnerHTML={{ __html: html }} />);
+    const article = within(container).getByRole("article", { name: "Terrace" });
+
+    expect(within(article).getByRole("heading", { level: 1, name: "Terrace" })).toBeInTheDocument();
+    expect(within(article).getByText(contour.featuredResidence.arrangement)).toBeInTheDocument();
+    for (const image of Object.values(contour.visualizations)) {
+      expect(within(article).getByRole("img", { name: image.alt })).toBeInTheDocument();
+    }
+    expect(within(article).getByText("Approx. 155 m²")).toBeInTheDocument();
+    expect(within(article).getByText("Schematic, not to scale")).toBeInTheDocument();
+  });
+
+  test("back and forward move between the building and residence stages", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openStory(user, "Crest");
+    expect(window.location.pathname).toBe("/buildings/crest/residence");
+
+    await goBack();
+    await waitFor(() => expect(window.location.pathname).toBe("/buildings/crest"));
+    expect(queryStory("Horizon")).not.toBeInTheDocument();
+    expect(openResidenceLink("Crest")).toHaveFocus();
+
+    await goBack();
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    expect(queryOverview("Crest")).not.toBeInTheDocument();
+
+    await goForward();
+    await waitFor(() => expect(window.location.pathname).toBe("/buildings/crest"));
+    expect(overview("Crest")).toBeInTheDocument();
+
+    await goForward();
+    await waitFor(() => expect(window.location.pathname).toBe("/buildings/crest/residence"));
+    expect(within(story("Horizon")).getByRole("heading", { level: 1 })).toHaveFocus();
   });
 });
