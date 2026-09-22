@@ -2,15 +2,23 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { BuildingIndex } from "@/components/building-index";
 import { BuildingOverview } from "@/components/building-overview";
+import { ControlBar, ControlBarButton, ControlSwitch } from "@/components/control-bar";
 import { DistrictScene } from "@/components/district-scene";
 import { ResidenceStory } from "@/components/residence-story";
+import { SimpleViewNotice } from "@/components/simple-view-notice";
 import { Button } from "@/components/ui/button";
-import { useJourney } from "@/components/use-journey";
+import { useJourney, useMotion } from "@/components/use-journey";
 import { getConcept, type ConceptSlug } from "@/lib/collection";
-import { districtStage, journeyPath, selectedSlug, type JourneyStage } from "@/lib/journey";
+import {
+  districtStage,
+  journeyPath,
+  selectedSlug,
+  type JourneyStage,
+  type SimpleViewReason,
+} from "@/lib/journey";
 import { cn, isPlainClick } from "@/lib/utils";
 
 const indexId = "building-index";
@@ -22,7 +30,10 @@ type ExplorationProps = {
 
 export function Exploration({ initialStage = districtStage }: ExplorationProps) {
   const [journey, dispatch] = useJourney(initialStage);
+  const motion = useMotion(journey.motionChoice);
+  const simpleView = journey.viewMode === "simple";
   const [indexOpen, setIndexOpen] = useState(false);
+  const simpleViewSwitchRef = useRef<HTMLButtonElement>(null);
   const indexToggleRef = useRef<HTMLButtonElement>(null);
   const indexHeadingRef = useRef<HTMLHeadingElement>(null);
   const overviewHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -44,6 +55,13 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
   // heads for the district. Once loaded, it stays mounted behind later stories.
   const [sceneWanted, setSceneWanted] = useState(stage.name !== "residence");
   if (!sceneWanted && stage.name !== "residence") setSceneWanted(true);
+
+  // The visitor's control and the scene's failures take the same path, so both
+  // keep the stage and selection and both bring the notice.
+  const switchToSimpleView = useCallback(
+    (reason: SimpleViewReason) => dispatch({ type: "switchToSimpleView", reason }),
+    [dispatch],
+  );
 
   useEffect(() => {
     if (!indexOpen) return;
@@ -95,7 +113,8 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
       trigger.slug === selectedSlug(previous) &&
       trigger.control.isConnected &&
       !trigger.control.closest("[hidden]");
-    (returnToTrigger ? trigger.control : indexToggleRef.current)?.focus();
+    // Simple view has no index toggle; its index is the page.
+    (returnToTrigger ? trigger.control : (indexToggleRef.current ?? indexHeadingRef.current))?.focus();
   }, [stage]);
 
   function closeIndex() {
@@ -126,36 +145,64 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
     dispatch({ type: "resetView" });
   }
 
+  function dismissNotice() {
+    dispatch({ type: "dismissSimpleViewNotice" });
+    simpleViewSwitchRef.current?.focus();
+  }
+
   return (
-    <div className="flex min-h-dvh flex-col">
+    // Until the visitor chooses, `motion-safe` and `motion-reduce` follow the
+    // system preference, so server-rendered panels never move against it.
+    <div
+      className="flex min-h-dvh flex-col"
+      data-motion={journey.motionChoice === null ? undefined : motion ? "on" : "off"}>
       <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-10 md:py-6">
         <Link href="/" className="type-wordmark" onClick={returnHome}>
           Habitta
         </Link>
-        {storyConcept ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => dispatch({ type: "backToBuilding" })}>
-              <ArrowLeft data-icon="inline-start" strokeWidth={1.5} />
-              Back to {storyConcept.building.name}
-            </Button>
-            <Button variant="ghost" onClick={() => dispatch({ type: "returnToDistrict" })}>
-              Return to district
-            </Button>
-          </div>
-        ) : (
-          <Button
-            ref={indexToggleRef}
-            variant="outline"
-            aria-expanded={indexOpen}
-            aria-controls={indexId}
-            onClick={() => setIndexOpen((open) => !open)}>
-            Building index
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {storyConcept ? (
+            <>
+              <Button variant="outline" onClick={() => dispatch({ type: "backToBuilding" })}>
+                <ArrowLeft data-icon="inline-start" strokeWidth={1.5} />
+                Back to {storyConcept.building.name}
+              </Button>
+              <Button variant="ghost" onClick={() => dispatch({ type: "returnToDistrict" })}>
+                Return to district
+              </Button>
+            </>
+          ) : null}
+          <ControlBar>
+            <ControlSwitch
+              label="Motion"
+              checked={motion}
+              onCheckedChange={(enabled) => dispatch({ type: "setMotion", enabled })}
+            />
+            <ControlSwitch
+              ref={simpleViewSwitchRef}
+              label="Simple view"
+              checked={simpleView}
+              onCheckedChange={(simple) =>
+                simple ? switchToSimpleView("manual") : dispatch({ type: "switchToScene" })
+              }
+            />
+            {storyConcept || simpleView ? null : (
+              <ControlBarButton
+                ref={indexToggleRef}
+                aria-expanded={indexOpen}
+                aria-controls={indexId}
+                onClick={() => setIndexOpen((open) => !open)}>
+                Building index
+              </ControlBarButton>
+            )}
+          </ControlBar>
+        </div>
       </header>
 
       {/* On narrow screens the overview is a bottom sheet; keep the page end reachable above it. */}
       <main className={cn("flex-1", overviewConcept && "max-md:pb-[60dvh]")}>
+        <SimpleViewNotice reason={journey.simpleViewReason} onDismiss={dismissNotice} />
+
         {/* A story replaces the district view, which keeps its scene and index state behind it. */}
         <div hidden={storyConcept !== undefined}>
           <section
@@ -172,7 +219,9 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
             </p>
           </section>
 
-          {sceneWanted ? <DistrictScene /> : null}
+          {sceneWanted && !simpleView ? (
+            <DistrictScene motion={motion} onSimpleView={switchToSimpleView} />
+          ) : null}
 
           {overviewConcept ? (
             <BuildingOverview
@@ -185,11 +234,12 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
             />
           ) : null}
 
+          {/* In simple view the index is the page, always open. */}
           <BuildingIndex
             id={indexId}
-            hidden={!indexOpen}
+            hidden={!indexOpen && !simpleView}
             headingRef={indexHeadingRef}
-            onClose={closeIndex}
+            onClose={simpleView ? undefined : closeIndex}
             selectedSlug={selectedSlug(stage)}
             onSelect={selectBuilding}
           />

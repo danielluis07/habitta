@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   initialJourney,
   journeyPath,
@@ -40,4 +40,24 @@ export function useJourney(initialStage: JourneyStage) {
   }, [dispatch]);
 
   return [state, dispatch] as const;
+}
+
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+
+function subscribeToReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(reducedMotionQuery);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+// Whether the district may move: the visitor's in-page choice, or until they
+// make one, the system reduced-motion preference. The server can't know that
+// preference, so it renders motion on and hydration settles the real value.
+export function useMotion(choice: boolean | null) {
+  const systemReducesMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    () => window.matchMedia(reducedMotionQuery).matches,
+    () => false,
+  );
+  return choice ?? !systemReducesMotion;
 }

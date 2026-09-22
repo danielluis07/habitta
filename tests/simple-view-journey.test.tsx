@@ -1,14 +1,21 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
+import type { Window as HappyDOMWindow } from "happy-dom";
 import type { ReactNode } from "react";
+import type { SceneProps } from "@/components/district-scene";
 
 // Seam 1: the real page in simple view. The 3D scene is swapped out at its
 // lazy, client-only module boundary, never stubbed from the inside. The
-// stand-in only marks where the scene would load.
+// stand-in marks where the scene would load and keeps the props it was given,
+// so a test can report a failure the way the scene would.
+const scene: { props?: SceneProps } = {};
 mock.module("@/components/district-scene/scene", () => ({
-  default: () => <div data-testid="district-scene" />,
+  default: function SceneStandIn(props: SceneProps) {
+    scene.props = props;
+    return <div data-testid="district-scene" />;
+  },
 }));
 
 const { default: Home } = await import("@/app/page");
@@ -82,7 +89,7 @@ async function goForward() {
 }
 
 async function tabTo(user: UserEvent, target: HTMLElement) {
-  for (let presses = 0; presses < 10 && document.activeElement !== target; presses++) {
+  for (let presses = 0; presses < 20 && document.activeElement !== target; presses++) {
     await user.tab();
   }
   expect(target).toHaveFocus();
@@ -119,6 +126,30 @@ function expectInDocumentOrder(nodes: HTMLElement[]) {
   const all = Array.from(document.querySelectorAll("*"));
   const positions = nodes.map((node) => all.indexOf(node));
   expect(positions).toEqual(positions.toSorted((a, b) => a - b));
+}
+
+// The system reduced-motion preference the page finds on load.
+function setSystemReducedMotion(reduce: boolean) {
+  (window as unknown as HappyDOMWindow).happyDOM.settings.device.prefersReducedMotion = reduce
+    ? "reduce"
+    : "no-preference";
+}
+
+function motionSwitch() {
+  return screen.getByRole("switch", { name: "Motion" });
+}
+
+function simpleViewSwitch() {
+  return screen.getByRole("switch", { name: "Simple view" });
+}
+
+function notice() {
+  return screen.getByRole("status");
+}
+
+function expectPreferencesOutOfUrl() {
+  expect(window.location.search).toBe("");
+  expect(window.location.hash).toBe("");
 }
 
 describe("arrival", () => {
@@ -657,5 +688,248 @@ describe("residence URL", () => {
     await goForward();
     await waitFor(() => expect(window.location.pathname).toBe("/buildings/crest/residence"));
     expect(within(story("Horizon")).getByRole("heading", { level: 1 })).toHaveFocus();
+  });
+});
+
+describe("motion control", () => {
+  afterEach(() => setSystemReducedMotion(false));
+
+  test("starts on when the system doesn't ask for reduced motion", async () => {
+    await renderHome();
+
+    expect(motionSwitch()).toBeChecked();
+    expect(motionSwitch()).toHaveTextContent("Motion On");
+  });
+
+  test("starts off when the system asks for reduced motion", async () => {
+    setSystemReducedMotion(true);
+    await renderHome();
+
+    expect(motionSwitch()).not.toBeChecked();
+    expect(motionSwitch()).toHaveTextContent("Motion Off");
+  });
+
+  test("overrides the system preference from the keyboard", async () => {
+    const user = userEvent.setup();
+    setSystemReducedMotion(true);
+    await renderHome();
+
+    await tabTo(user, motionSwitch());
+    await user.keyboard(" ");
+
+    expect(motionSwitch()).toBeChecked();
+    expect(motionSwitch()).toHaveTextContent("Motion On");
+
+    await user.keyboard("{Enter}");
+
+    expect(motionSwitch()).not.toBeChecked();
+    expect(motionSwitch()).toHaveTextContent("Motion Off");
+  });
+
+  test("keeps the visitor's choice through the journey, out of the URL", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+
+    await user.click(motionSwitch());
+    expect(motionSwitch()).not.toBeChecked();
+
+    await openStory(user, "Crest");
+    expect(motionSwitch()).not.toBeChecked();
+    expect(window.location.pathname).toBe("/buildings/crest/residence");
+    expectPreferencesOutOfUrl();
+
+    await user.click(screen.getByRole("button", { name: "Back to Crest" }));
+    await user.click(screen.getByRole("link", { name: "Habitta" }));
+    expect(motionSwitch()).not.toBeChecked();
+    expect(window.location.pathname).toBe("/");
+  });
+});
+
+describe("simple view control", () => {
+  test("starts off, with the 3D scene loading", async () => {
+    await renderHome();
+
+    expect(simpleViewSwitch()).not.toBeChecked();
+    expect(simpleViewSwitch()).toHaveTextContent("Simple view Off");
+    expect(await screen.findByTestId("district-scene")).toBeInTheDocument();
+  });
+
+  test("switches from the district, where the building index becomes the page", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+
+    await user.click(simpleViewSwitch());
+
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(simpleViewSwitch()).toHaveTextContent("Simple view On");
+    expect(simpleViewSwitch()).toHaveFocus();
+    expect(screen.queryByTestId("district-scene")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+    expectPreferencesOutOfUrl();
+
+    // The index is always open, so it has no toggle and no close action.
+    expect(buildingIndex()).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Building index" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Close building index" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(indexEntryLink("Grove"));
+    await user.click(within(overview("Grove")).getByRole("button", { name: "Return to district" }));
+
+    expect(indexEntryLink("Grove")).toHaveFocus();
+    expect(simpleViewSwitch()).toBeChecked();
+  });
+
+  test("switches from a building overview without changing the selection or URL", async () => {
+    const user = userEvent.setup();
+    await renderBuildingLink("crest");
+    await screen.findByTestId("district-scene");
+
+    await user.click(simpleViewSwitch());
+
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(screen.queryByTestId("district-scene")).not.toBeInTheDocument();
+    expect(within(overview("Crest")).getByText("Horizon")).toBeInTheDocument();
+    expect(indexEntryLink("Crest")).toHaveAttribute("aria-current", "page");
+    expect(window.location.pathname).toBe("/buildings/crest");
+    expectPreferencesOutOfUrl();
+
+    // Closing a directly linked overview lands on the index, which simple view keeps open.
+    await user.click(within(overview("Crest")).getByRole("button", { name: "Return to district" }));
+
+    expect(queryOverview("Crest")).not.toBeInTheDocument();
+    expect(within(buildingIndex()).getByRole("heading", { name: "Building index" })).toHaveFocus();
+  });
+
+  test("switches from a residence story without changing the selection or URL", async () => {
+    const user = userEvent.setup();
+    await renderResidenceLink("crest");
+
+    await user.click(simpleViewSwitch());
+
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(within(story("Horizon")).getByRole("heading", { level: 1 })).toBeVisible();
+    expect(window.location.pathname).toBe("/buildings/crest/residence");
+    expectPreferencesOutOfUrl();
+
+    await user.click(screen.getByRole("button", { name: "Back to Crest" }));
+
+    expect(within(overview("Crest")).getByRole("heading", { name: "Crest" })).toBeInTheDocument();
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(buildingIndex()).toBeVisible();
+    expect(screen.queryByTestId("district-scene")).not.toBeInTheDocument();
+  });
+
+  test("is operable from the keyboard", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+
+    await tabTo(user, simpleViewSwitch());
+    await user.keyboard("{Enter}");
+
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(buildingIndex()).toBeVisible();
+
+    await user.keyboard(" ");
+
+    expect(simpleViewSwitch()).not.toBeChecked();
+    expect(simpleViewSwitch()).toHaveFocus();
+  });
+
+  test("announces the switch briefly in a polite live region, without moving focus", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+
+    expect(notice()).toHaveAttribute("aria-live", "polite");
+    expect(notice()).toBeEmptyDOMElement();
+
+    await user.click(simpleViewSwitch());
+
+    expect(notice()).toHaveTextContent(
+      "Simple view is on. The building index lists every building.",
+    );
+    expect(simpleViewSwitch()).toHaveFocus();
+  });
+
+  test("the notice can be dismissed, returning focus to the simple view control", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await user.click(simpleViewSwitch());
+
+    await user.click(screen.getByRole("button", { name: "Dismiss notice" }));
+
+    expect(notice()).toBeEmptyDOMElement();
+    expect(screen.queryByRole("button", { name: "Dismiss notice" })).not.toBeInTheDocument();
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(simpleViewSwitch()).toHaveFocus();
+  });
+
+  test("switching back brings back the scene and the index as it was", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await user.click(simpleViewSwitch());
+
+    await user.click(simpleViewSwitch());
+
+    expect(simpleViewSwitch()).not.toBeChecked();
+    expect(await screen.findByTestId("district-scene")).toBeInTheDocument();
+    expect(notice()).toBeEmptyDOMElement();
+    expect(indexToggle()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Building index" })).not.toBeInTheDocument();
+  });
+
+  test.each([
+    ["unsupported", "this device can't show the 3D district"],
+    ["contextLost", "the 3D district stopped working"],
+    ["assetFailed", "part of the 3D district couldn't load"],
+    ["slow", "the 3D district was running too slowly"],
+  ] as const)(
+    "a scene reporting %s switches the same way, keeping the selection and saying why",
+    async (reason, why) => {
+      await renderBuildingLink("contour");
+      await screen.findByTestId("district-scene");
+
+      await act(async () => {
+        scene.props?.onSimpleView(reason);
+      });
+
+      expect(simpleViewSwitch()).toBeChecked();
+      expect(screen.queryByTestId("district-scene")).not.toBeInTheDocument();
+      expect(notice()).toHaveTextContent(`Simple view is on because ${why}.`);
+      expect(within(overview("Contour")).getByText("Terrace")).toBeInTheDocument();
+      expect(window.location.pathname).toBe("/buildings/contour");
+    },
+  );
+
+  test("back and forward keep simple view", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await user.click(simpleViewSwitch());
+    await user.click(indexEntryLink("Crest"));
+
+    await goBack();
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(buildingIndex()).toBeVisible();
+
+    await goForward();
+    await waitFor(() => expect(window.location.pathname).toBe("/buildings/crest"));
+    expect(overview("Crest")).toBeInTheDocument();
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(screen.queryByTestId("district-scene")).not.toBeInTheDocument();
+  });
+
+  test("the Habitta wordmark returns to the district overview without leaving simple view", async () => {
+    const user = userEvent.setup();
+    await renderBuildingLink("grove");
+    await user.click(simpleViewSwitch());
+
+    await user.click(screen.getByRole("link", { name: "Habitta" }));
+
+    expect(queryOverview("Grove")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+    expect(simpleViewSwitch()).toBeChecked();
+    expect(buildingIndex()).toBeVisible();
   });
 });

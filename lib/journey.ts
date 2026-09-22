@@ -1,8 +1,8 @@
 // The exploration journey: where the visitor is (district, a building, or its
-// featured residence) and the intents that move them. It is plain state with no
-// rendering or 3D. The page renders from it, the district scene will read it as
-// input, and the URL mirrors its stage. Camera viewpoint and preferences never
-// reach the URL.
+// featured residence), how they prefer to see it, and the intents that move
+// them. It is plain state with no rendering or 3D. The page renders from it,
+// the district scene will read it as input, and the URL mirrors its stage.
+// Camera viewpoint and preferences never reach the URL.
 
 import { getConcept, type ConceptSlug } from "@/lib/collection";
 
@@ -17,6 +17,15 @@ export type Viewpoint = {
   target: readonly [number, number, number];
 };
 
+/** Whether the district is shown as the 3D scene or as simple view. */
+export type ViewMode = "scene" | "simple";
+
+/**
+ * Why the page switched to simple view: the visitor asked (`manual`), or the
+ * 3D scene couldn't be used.
+ */
+export type SimpleViewReason = "unsupported" | "contextLost" | "assetFailed" | "slow" | "manual";
+
 export type JourneyState = {
   stage: JourneyStage;
   /**
@@ -25,6 +34,14 @@ export type JourneyState = {
    * default district overview.
    */
   savedViewpoint: Viewpoint | null;
+  /**
+   * Whether the visitor turned motion on or off in the page. `null` until they
+   * do, while the system reduced-motion preference decides.
+   */
+  motionChoice: boolean | null;
+  viewMode: ViewMode;
+  /** Why the page switched to simple view, while its brief notice shows. */
+  simpleViewReason: SimpleViewReason | null;
 };
 
 export type JourneyIntent =
@@ -42,12 +59,23 @@ export type JourneyIntent =
   | { type: "continueExploring" }
   | { type: "resetView" }
   /** The URL changed underneath the journey, e.g. through browser back/forward. */
-  | { type: "followUrl"; path: string };
+  | { type: "followUrl"; path: string }
+  | { type: "setMotion"; enabled: boolean }
+  /** The visitor's simple view control and the scene's failures both switch through here. */
+  | { type: "switchToSimpleView"; reason: SimpleViewReason }
+  | { type: "switchToScene" }
+  | { type: "dismissSimpleViewNotice" };
 
 export const districtStage: JourneyStage = { name: "district" };
 
 export function initialJourney(stage: JourneyStage = districtStage): JourneyState {
-  return { stage, savedViewpoint: null };
+  return {
+    stage,
+    savedViewpoint: null,
+    motionChoice: null,
+    viewMode: "scene",
+    simpleViewReason: null,
+  };
 }
 
 export function journeyReducer(state: JourneyState, intent: JourneyIntent): JourneyState {
@@ -55,7 +83,7 @@ export function journeyReducer(state: JourneyState, intent: JourneyIntent): Jour
     case "selectBuilding": {
       const stage: JourneyStage = { name: "building", slug: intent.slug };
       if (state.stage.name !== "district") return { ...state, stage };
-      return { stage, savedViewpoint: intent.viewpoint ?? null };
+      return { ...state, stage, savedViewpoint: intent.viewpoint ?? null };
     }
     case "returnToDistrict":
       return { ...state, stage: districtStage };
@@ -69,11 +97,25 @@ export function journeyReducer(state: JourneyState, intent: JourneyIntent): Jour
       if (state.stage.name !== "residence") return state;
       return { ...state, stage: districtStage };
     case "resetView":
-      return initialJourney();
+      // The default district overview, with the visitor's preferences kept.
+      return { ...state, stage: districtStage, savedViewpoint: null };
     case "followUrl": {
       const stage = parseJourneyPath(intent.path);
       return stage ? { ...state, stage } : state;
     }
+    // Preferences never change the stage or selection.
+    case "setMotion":
+      return state.motionChoice === intent.enabled
+        ? state
+        : { ...state, motionChoice: intent.enabled };
+    case "switchToSimpleView":
+      if (state.viewMode === "simple") return state;
+      return { ...state, viewMode: "simple", simpleViewReason: intent.reason };
+    case "switchToScene":
+      if (state.viewMode === "scene") return state;
+      return { ...state, viewMode: "scene", simpleViewReason: null };
+    case "dismissSimpleViewNotice":
+      return state.simpleViewReason === null ? state : { ...state, simpleViewReason: null };
   }
 }
 
