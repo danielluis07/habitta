@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Habitta
 
-## Getting Started
+Habitta is a fictional architecture studio. This site is its portfolio of imagined residential concepts: three buildings, Crest, Contour and Grove, each with one featured residence, in a single district above the clouds.
 
-First, run the development server:
+- Domain terms: [`CONTEXT.md`](CONTEXT.md)
+- Visual system: [`DESIGN.md`](DESIGN.md)
+- Product spec: [#12](https://github.com/danielluis07/habitta/issues/12)
+
+## Development
+
+The project runs on [Bun](https://bun.sh) and Next.js.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+bun run test
+```
 
-## Learn More
+This runs Bun's test runner with Testing Library in a happy-dom environment (configured in `bunfig.toml`). The journey tests in `tests/` render the real page in simple view, with the 3D scene swapped out at its lazy, client-only module boundary (`components/district-scene/scene.tsx`).
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Concept content lives in one typed module, `lib/collection.ts`.
