@@ -1,9 +1,15 @@
-import { describe, expect, test } from "bun:test";
-import { Texture, Vector2 } from "three";
-import { cloudNoise, driftClouds } from "@/components/district-scene/clouds";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { resolve } from "node:path";
+import { Box3, MathUtils, PerspectiveCamera, Vector3, type Object3D } from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { cameraFar, fogFar } from "@/components/district-scene/atmosphere";
+import { buildingFill, frame, framingPoints, overviewFill } from "@/components/district-scene/framing";
+import { configureLoader } from "@/components/district-scene/models";
 import { pixelRatioCap } from "@/components/district-scene/pixel-ratio";
+import { collection, type ConceptSlug } from "@/lib/collection";
+import type { Viewpoint } from "@/lib/journey";
 
-// The scene's atmosphere and render budget, without WebGL.
+// The scene's atmosphere, framing and render budget, without WebGL.
 describe("pixel ratio cap per device class", () => {
   const device = (queries: string[]) => (query: string) => queries.includes(query);
   const desktop = ["(hover: hover) and (pointer: fine)", "(min-width: 768px)"];
@@ -19,42 +25,60 @@ describe("pixel ratio cap per device class", () => {
   });
 });
 
-describe("cloud drift", () => {
-  const layer = () => ({ texture: new Texture(), velocity: new Vector2(-0.002, 0.001) });
+const fov = 42;
+// The district canvas on a 1440 × 1000 desktop and a 390 × 844 phone.
+const aspects = { desktop: 1440 / 856, mobile: 390 / 549 };
+let district: Object3D;
 
-  test("stays still and asks for no frame with motion off", () => {
-    const layers = [layer(), layer()];
-    expect(driftClouds(layers, 1 / 60, false)).toBe(false);
-    for (const { texture } of layers) expect(texture.offset.toArray()).toEqual([0, 0]);
-  });
+beforeAll(async () => {
+  const data = await Bun.file(resolve(import.meta.dir, "../public/models/district-low.glb")).arrayBuffer();
+  const loader = new GLTFLoader();
+  configureLoader(loader);
+  district = (await loader.parseAsync(data, "")).scene;
+});
 
-  test("moves and asks for the next frame with motion on", () => {
-    const layers = [layer()];
-    expect(driftClouds(layers, 0.05, true)).toBe(true);
-    expect(layers[0].texture.offset.x).toBeCloseTo(-0.0001);
-    expect(layers[0].texture.offset.y).toBeCloseTo(0.00005);
-  });
+const framedPoints = (slug?: ConceptSlug) => framingPoints(district, slug);
 
-  test("resumes without jumping after a still spell", () => {
-    const layers = [layer()];
-    driftClouds(layers, 30, true);
-    expect(layers[0].texture.offset.x).toBeCloseTo(-0.0002);
+function projector({ position, target }: Viewpoint, aspect: number) {
+  const camera = new PerspectiveCamera(fov, aspect, 1, cameraFar);
+  camera.position.set(...position);
+  camera.lookAt(new Vector3(...target));
+  camera.updateMatrixWorld();
+  return (point: Vector3) => point.clone().project(camera);
+}
+
+describe("default overview framing", () => {
+  test.each(Object.entries(aspects))("the three buildings dominate the %s view, centred", (_, aspect) => {
+    const project = projector(frame(framedPoints(), fov, aspect, overviewFill), aspect);
+    const projected = framedPoints().map(project);
+    const xs = projected.map(({ x }) => x);
+    const ys = projected.map(({ y }) => y);
+    for (const value of [...xs, ...ys]) expect(Math.abs(value)).toBeLessThanOrEqual(overviewFill + 1e-6);
+    // Filled to the edge on the limiting axis, and balanced on both.
+    expect(Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))).toBeGreaterThan(2 * overviewFill - 0.05);
+    expect(Math.max(...xs) + Math.min(...xs)).toBeCloseTo(0, 1);
+    expect(Math.max(...ys) + Math.min(...ys)).toBeCloseTo(0, 1);
   });
 });
 
-test("cloud noise tiles without a seam", () => {
-  const size = 64;
-  const noise = cloudNoise(size, 7);
-  let interior = 0;
-  let seam = 0;
-  for (let row = 0; row < size; row++) {
-    for (let column = 1; column < size; column++) {
-      interior = Math.max(interior, Math.abs(noise[row * size + column] - noise[row * size + column - 1]));
-    }
-    seam = Math.max(seam, Math.abs(noise[row * size] - noise[row * size + size - 1]));
-    seam = Math.max(seam, Math.abs(noise[row] - noise[(size - 1) * size + row]));
-  }
-  expect(Math.min(...noise)).toBeGreaterThanOrEqual(0);
-  expect(Math.max(...noise)).toBeLessThanOrEqual(1);
-  expect(seam).toBeLessThanOrEqual(interior);
+describe("landscape to the horizon", () => {
+  test("the haze is complete before the far plane", () => {
+    expect(fogFar).toBeLessThan(cameraFar);
+  });
+
+  // No terrain edge shows if, from every framed view, the ground reaches
+  // past where the haze is complete in every direction the camera can see.
+  const views = [undefined, ...collection.map(({ slug }) => slug)].flatMap((slug) =>
+    Object.entries(aspects).map(([device, aspect]) => [slug ?? "overview", device, slug, aspect] as const));
+
+  test.each(views)("the ground outruns the haze from the %s view on %s", (_, __, slug, aspect) => {
+    const { position } = frame(framedPoints(slug), fov, aspect, slug ? buildingFill : overviewFill);
+    const ground = new Box3().setFromObject(district.getObjectByName("terrain_highland_to_horizon")!);
+    const tan = Math.tan(MathUtils.degToRad(fov) / 2);
+    const reach = fogFar * Math.hypot(1, tan, tan * aspect);
+    expect(ground.min.x).toBeLessThan(position[0] - reach);
+    expect(ground.max.x).toBeGreaterThan(position[0] + reach);
+    expect(ground.min.z).toBeLessThan(position[2] - reach);
+    expect(ground.max.z).toBeGreaterThan(position[2] + reach);
+  });
 });
