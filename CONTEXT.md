@@ -11,7 +11,7 @@ An imagined design by Habitta, presented as portfolio work rather than as a comp
 A curated set of separate Habitta building concepts in the shared imagined district. Each showcased building contributes one featured residence and its own story.
 
 **District**:
-The single imagined place that situates Habitta's showcased buildings. Its connected landscape gives separate concepts a shared setting without presenting them as a real commissioned development.
+The single imagined highland place that situates Habitta's showcased buildings. Its connected landscape of hills, plots and paths runs to the horizon and gives separate concepts a shared setting without presenting them as a real commissioned development.
 
 **Building**:
 An imagined residential structure designed by the studio. A building may contain many homes, but the portfolio highlights one featured residence in each showcased building.
