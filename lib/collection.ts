@@ -1,8 +1,10 @@
-// The single source of concept content. The building index, and later the
-// building overview, residence story and district scene, all read from here.
+// The single source of concept content. The building index, the building
+// overview, the residence story and the district scene all read from here.
 //
-// Copy below is placeholder copy drawn from the accepted architectural briefs.
-// Production copy is written separately.
+// Copy below is production copy for Crest, Contour and Grove, written to the
+// accepted architectural brief and comparison board reviewed at commit
+// 0148994. Images stay development placeholders until the production
+// visualization workflow replaces them.
 
 import {
   getProvenanceEntry,
