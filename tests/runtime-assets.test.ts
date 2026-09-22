@@ -3,7 +3,7 @@ import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { type Document, Primitive } from "@gltf-transform/core";
-import { EXTMeshGPUInstancing } from "@gltf-transform/extensions";
+import { EXTMeshGPUInstancing, type InstancedMesh } from "@gltf-transform/extensions";
 import { collection } from "@/lib/collection";
 import { modelIO } from "@/scripts/model-io";
 import { validateModels } from "@/scripts/validate-models";
@@ -54,6 +54,18 @@ test("every committed runtime GLB passes Khronos validation, scene bindings and 
     expect(scenario.triangles).toBeGreaterThan(0);
     expect(scenario.drawCalls).toBeGreaterThan(0);
   }
+});
+
+test("repeated street, vegetation, roof and facade props are GPU-instanced", async () => {
+  const io = await modelIO();
+  const document = await io.read(join(publicDirectory, "models/district-low.glb"));
+  const instances = new Map(document.getRoot().listNodes().flatMap((node) => {
+    const batch = node.getExtension<InstancedMesh>("EXT_mesh_gpu_instancing");
+    return batch ? [[node.getName(), batch.listAttributes()[0].getCount()] as const] : [];
+  }));
+  const props = ["street_lights_instanced", "vegetation_trees_instanced",
+    ...collection.flatMap(({ slug }) => [`${slug}_PLACEHOLDER_roof_props`, `${slug}_PLACEHOLDER_openings`])];
+  for (const name of props) expect(instances.get(name)).toBeGreaterThan(1);
 });
 
 describe("invalid exports fail the release check", () => {
@@ -120,11 +132,12 @@ describe("invalid exports fail the release check", () => {
 
   test("opening triangle limits include GPU instances on both tiers", async () => {
     const directory = await fixture();
+    const before = (await validateModels(directory)).scenarios[0];
     await edit(directory, "district-low.glb", (document) => addInstances(document, 13_000));
     const report = await validateModels(directory);
     expect(report.errors.join("\n")).toMatch(/opening \(mobile\): .* triangles exceeds 75000/);
     expect(report.errors.join("\n")).toMatch(/opening \(desktop\): .* triangles exceeds 150000/);
-    expect(report.scenarios[0].drawCalls).toBe(19);
+    expect(report.scenarios[0].drawCalls).toBe(before.drawCalls + 1);
   });
 
   test("selection triangle limits include the district and the detail together", async () => {

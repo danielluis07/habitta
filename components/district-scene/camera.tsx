@@ -62,7 +62,9 @@ export function DistrictCamera({
     const destination = !slug && savedViewpoint ? savedViewpoint : frame(bounds, camera);
     const toPosition = new Vector3(...destination.position);
     const toTarget = new Vector3(...destination.target);
-    if (!initialized.current || !motion) {
+    // A flight to where the camera already is would render frames of a still view.
+    const arrived = camera.position.equals(toPosition) && target.current.equals(toTarget);
+    if (!initialized.current || !motion || arrived) {
       camera.position.copy(toPosition);
       target.current.copy(toTarget);
       camera.lookAt(target.current);

@@ -14,6 +14,7 @@ colors:
   scene-sky-horizon: "#F4F1EA"
   scene-sky-zenith: "#B9C7CF"
   scene-cloud: "#FAF8F3"
+  scene-sun: "#FFF1DC"
   scene-fog: "#F4F1EA"
   scene-terrain-grass: "#A5AE95"
   scene-terrain-lane: "#CFC7B6"
@@ -296,7 +297,7 @@ These tokens are shared by the React Three Fiber scene and by the reference rend
 - **Clouds:** 2–4 non-volumetric layers in **scene cloud** (`#FAF8F3`), a warm white slightly lighter than paper and never pure white. Clouds lie below the occupied terraces and partly veil the landscape.
 - **Terrain:** muted sage and dry grass (**scene terrain grass**, `#A5AE95`), with lanes and paths in **scene terrain lane** (`#CFC7B6`). The terrain may be gently stylized.
 - **Buildings:** true material colors from the accepted briefs ([#11](https://github.com/danielluis07/habitta/issues/11)). Crest: oak, limestone, plaster, bronze. Contour: textured concrete, terrazzo, stone, timber. Grove: lime render, buff brick, clay, oak. The buildings stay architecturally plausible and are never stylized or re-tinted to match the UI.
-- **Light:** warm daylight from the southeast reference sun, consistent with every concept visualization.
+- **Light:** warm daylight from the southeast reference sun (**scene sun**, `#FFF1DC`), late morning and about 40° high, consistent with every concept visualization. The scene grades with a neutral tone map, so warmth comes from the light and never from a tint over the buildings.
 
 The scene hex values may be tuned against reference renders. Fog and sky horizon must stay equal to paper.
 
