@@ -15,4 +15,10 @@
     <line x1="312" y1="564" x2="888" y2="564"/>
     <path d="M568 620 L568 572 L632 572 L632 620"/>
   </g>
+  <g font-family="'Instrument Sans', system-ui, sans-serif" fill="#1F1D1A">
+    <rect x="32" y="32" width="360" height="116" fill="#FBF9F5" stroke="#8A8378" stroke-width="2"/>
+    <text x="56" y="70" font-size="22" font-weight="500" letter-spacing="3">PLACEHOLDER</text>
+    <text x="56" y="104" font-size="20" fill="#5E5850">Grove · Building context</text>
+    <text x="56" y="134" font-size="20" fill="#5E5850">Not a concept visualization</text>
+  </g>
 </svg>

@@ -15,4 +15,10 @@
     <line x1="570" y1="200" x2="570" y2="640"/>
     <line x1="630" y1="200" x2="630" y2="640"/>
   </g>
+  <g font-family="'Instrument Sans', system-ui, sans-serif" fill="#1F1D1A">
+    <rect x="32" y="32" width="360" height="116" fill="#FBF9F5" stroke="#8A8378" stroke-width="2"/>
+    <text x="56" y="70" font-size="22" font-weight="500" letter-spacing="3">PLACEHOLDER</text>
+    <text x="56" y="104" font-size="20" fill="#5E5850">Crest · Building context</text>
+    <text x="56" y="134" font-size="20" fill="#5E5850">Not a concept visualization</text>
+  </g>
 </svg>

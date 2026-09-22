@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <pattern id="hatch" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="20" stroke="#D9D3C7" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="800" fill="#F4F1EA"/>
+  <rect width="1200" height="800" fill="url(#hatch)"/>
+  <g font-family="'Instrument Sans', system-ui, sans-serif" fill="#1F1D1A">
+    <rect x="32" y="32" width="360" height="116" fill="#FBF9F5" stroke="#8A8378" stroke-width="2"/>
+    <text x="56" y="70" font-size="22" font-weight="500" letter-spacing="3">PLACEHOLDER</text>
+    <text x="56" y="104" font-size="20" fill="#5E5850">Grove · Garden residence</text>
+    <text x="56" y="134" font-size="20" fill="#5E5850">Schematic, not to scale</text>
+  </g>
+  <g font-family="'Instrument Sans', system-ui, sans-serif" fill="#1F1D1A">
+    <rect x="160" y="170" width="460" height="160" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="390" y="257" text-anchor="middle" font-size="20">Kitchen</text>
+    <rect x="160" y="330" width="220" height="340" fill="#DCE0D3" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="270" y="507" text-anchor="middle" font-size="20">Private patio</text>
+    <rect x="380" y="330" width="240" height="340" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="500" y="507" text-anchor="middle" font-size="20">Living / dining</text>
+    <rect x="620" y="170" width="230" height="130" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="735" y="242" text-anchor="middle" font-size="17">Bath · laundry · store</text>
+    <rect x="620" y="300" width="230" height="370" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="735" y="492" text-anchor="middle" font-size="20">Hall</text>
+    <rect x="850" y="170" width="230" height="230" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="965" y="292" text-anchor="middle" font-size="20">Bedroom 2</text>
+    <rect x="850" y="400" width="230" height="270" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="965" y="542" text-anchor="middle" font-size="20">Main bedroom</text>
+    <line x1="380" y1="420" x2="380" y2="580" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="1080" y1="230" x2="1080" y2="340" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="1080" y1="480" x2="1080" y2="600" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="735" y1="730" x2="735" y2="678" stroke="#1F1D1A" stroke-width="2"/>
+    <path d="M727 690 L735 676 L743 690" fill="none" stroke="#1F1D1A" stroke-width="2"/>
+    <text x="749" y="720" font-size="18">Entry</text>
+    <text x="1140" y="80" text-anchor="middle" font-size="20" font-weight="500">N</text>
+    <line x1="1140" y1="140" x2="1140" y2="92" stroke="#1F1D1A" stroke-width="2"/>
+  </g>
+</svg>

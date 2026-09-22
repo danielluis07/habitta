@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <pattern id="hatch" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="20" stroke="#D9D3C7" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="800" fill="#F4F1EA"/>
+  <rect width="1200" height="800" fill="url(#hatch)"/>
+  <g font-family="'Instrument Sans', system-ui, sans-serif" fill="#1F1D1A">
+    <rect x="32" y="32" width="360" height="116" fill="#FBF9F5" stroke="#8A8378" stroke-width="2"/>
+    <text x="56" y="70" font-size="22" font-weight="500" letter-spacing="3">PLACEHOLDER</text>
+    <text x="56" y="104" font-size="20" fill="#5E5850">Contour · Terrace residence</text>
+    <text x="56" y="134" font-size="20" fill="#5E5850">Schematic, not to scale</text>
+  </g>
+  <g font-family="'Instrument Sans', system-ui, sans-serif" fill="#1F1D1A">
+    <rect x="100" y="170" width="250" height="100" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="225" y="227" text-anchor="middle" font-size="20">Bedroom 2</text>
+    <rect x="100" y="270" width="250" height="90" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="225" y="322" text-anchor="middle" font-size="20">Bedroom 3</text>
+    <rect x="430" y="170" width="370" height="100" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="615" y="227" text-anchor="middle" font-size="20">Bath · laundry · store</text>
+    <rect x="800" y="170" width="300" height="100" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="950" y="227" text-anchor="middle" font-size="20">Entry hall</text>
+    <polygon points="350,170 430,170 430,270 1100,270 1100,360 350,360" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="725" y="322" text-anchor="middle" font-size="20">Hall</text>
+    <rect x="100" y="360" width="400" height="210" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="300" y="472" text-anchor="middle" font-size="20">Living</text>
+    <rect x="500" y="360" width="280" height="210" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="640" y="472" text-anchor="middle" font-size="20">Kitchen / dining</text>
+    <rect x="780" y="360" width="320" height="210" fill="#FBF9F5" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="940" y="472" text-anchor="middle" font-size="20">Main bedroom</text>
+    <rect x="100" y="570" width="1000" height="130" fill="#DCE0D3" stroke="#1F1D1A" stroke-width="1.5"/>
+    <text x="600" y="642" text-anchor="middle" font-size="20">Terrace</text>
+    <line x1="100" y1="190" x2="100" y2="250" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="100" y1="285" x2="100" y2="345" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="130" y1="570" x2="470" y2="570" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="820" y1="570" x2="1060" y2="570" stroke="#1F1D1A" stroke-width="6"/>
+    <line x1="950" y1="110" x2="950" y2="162" stroke="#1F1D1A" stroke-width="2"/>
+    <path d="M942 150 L950 164 L958 150" fill="none" stroke="#1F1D1A" stroke-width="2"/>
+    <text x="964" y="132" font-size="18">Entry</text>
+    <text x="1140" y="80" text-anchor="middle" font-size="20" font-weight="500">N</text>
+    <line x1="1140" y1="140" x2="1140" y2="92" stroke="#1F1D1A" stroke-width="2"/>
+  </g>
+</svg>
