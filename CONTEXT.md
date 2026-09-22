@@ -23,3 +23,16 @@ _Avoid_: Listing, unit
 **Concept visualization**:
 An image depicting a specific imagined Habitta building or its featured residence as part of the same coherent design. It represents a proposed concept rather than a completed place.
 _Avoid_: Property photo
+
+**District overview**:
+The default view of the whole district, where a visitor arrives and where Reset view returns.
+
+**Building index**:
+The complete list of the collection's buildings, available to every visitor from arrival. It is an equivalent route to each building overview, not a subset or a separate portfolio.
+
+**Building overview**:
+The panel that identifies a selected building and its featured residence and offers the explicit action to open that residence.
+
+**Simple view**:
+The complete experience presented through the building index without the 3D district, whether a visitor chose it or the site switched to it because 3D could not be used.
+_Avoid_: Fallback mode, 2D mode
