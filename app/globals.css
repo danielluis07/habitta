@@ -41,16 +41,24 @@
   --color-border-control: #8a8378;
   --color-hairline: #d9d3c7;
   --color-error: #9a3b2e;
-
-  /* Fog and sky horizon must stay equal to paper. */
-  --color-scene-sky-horizon: var(--color-paper);
-  --color-scene-sky-zenith: #b9c7cf;
-  --color-scene-cloud: #faf8f3;
-  --color-scene-sun: #fff1dc;
-  --color-scene-fog: var(--color-paper);
-  --color-scene-terrain-grass: #a5ae95;
-  --color-scene-terrain-lane: #cfc7b6;
   --color-diagram-outdoor: #dce0d3;
+}
+
+/*
+ * Scene tokens are read by the WebGL scene through getComputedStyle, never by
+ * a utility class, so `static` keeps Tailwind from dropping them as unused.
+ */
+@theme static {
+  /* One haze is both the fog and the sky at the horizon, so distance dissolves into the sky. */
+  --color-scene-haze: #dae2e1;
+  --color-scene-sky-zenith: #bcd0da;
+  --color-scene-sun: #fff1dc;
+  --color-scene-terrain-grass: #a5ae95;
+  --color-scene-terrain-dry: #b4b094;
+  --color-scene-terrain-scrub: #949d80;
+  --color-scene-terrain-rock: #b8b1a3;
+  --color-scene-terrain-lane: #cfc7b6;
+  --color-scene-lake: #9eb3b7;
 }
 
 @theme inline {

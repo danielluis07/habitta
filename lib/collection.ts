@@ -167,7 +167,7 @@ export const collection: readonly Concept[] = [
       ],
       roomStories: {
         living:
-          "A three-panel bronze opening fills the south wall. Beyond the loggia, the valley and its clouds sit level with the room.",
+          "A three-panel bronze opening fills the south wall. Beyond the loggia, the valley falls away toward distant ranges.",
         outdoor:
           "The loggia is cut into the tower rather than hung from it. A solid parapet and the floor above make an outdoor room that feels safe at height.",
         quietRoom:

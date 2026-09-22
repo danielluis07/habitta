@@ -11,13 +11,15 @@ colors:
   border-control: "#8A8378"
   hairline: "#D9D3C7"
   error: "#9A3B2E"
-  scene-sky-horizon: "#F4F1EA"
-  scene-sky-zenith: "#B9C7CF"
-  scene-cloud: "#FAF8F3"
+  scene-haze: "#DAE2E1"
+  scene-sky-zenith: "#BCD0DA"
   scene-sun: "#FFF1DC"
-  scene-fog: "#F4F1EA"
   scene-terrain-grass: "#A5AE95"
+  scene-terrain-dry: "#B4B094"
+  scene-terrain-scrub: "#949D80"
+  scene-terrain-rock: "#B8B1A3"
   scene-terrain-lane: "#CFC7B6"
+  scene-lake: "#9EB3B7"
   diagram-outdoor: "#DCE0D3"
 typography:
   wordmark:
@@ -177,11 +179,11 @@ This is the visual source of truth for the Habitta portfolio. Domain terms follo
 
 ## Overview
 
-Habitta is a fictional architecture studio showing imagined residential concepts in a single district above a low cloud layer. The mood is **airy and quietly editorial**: warm daylight, generous space, restrained typography ([#3](https://github.com/danielluis07/habitta/issues/3)).
+Habitta is a fictional architecture studio showing imagined residential concepts in a single highland district, a grounded landscape of dry grass and scrub that runs out to a hazy horizon. The mood is **airy and quietly editorial**: warm daylight, generous space, restrained typography ([#3](https://github.com/danielluis07/habitta/issues/3)).
 
 Three principles govern every visual decision:
 
-1. **One atmosphere.** The UI, the 3D district, and the concept visualizations share one light and one palette. The page's paper color is the scene's fog and horizon haze, so panels read as part of the air rather than as chrome laid over it.
+1. **One atmosphere.** The UI, the 3D district, and the concept visualizations share one light and one palette. The scene's cool haze and the warm paper of the page are two tones of the same daylight, so panels read as part of the place rather than as chrome laid over it.
 2. **The work carries the color.** The chrome is paper and ink only. Color comes from the buildings' materials, the landscape, and the concept visualizations. No building gets its own theme; Crest, Contour, and Grove read as one collection ([#8](https://github.com/danielluis07/habitta/issues/8)).
 3. **Honest presentation.** Everything is an imagined concept. The design never borrows the visual language of property listings or documentary photography, and it gives the "Imagined concept" and "Concept visualization" disclosures a fixed, recognizable place ([#6](https://github.com/danielluis07/habitta/issues/6)).
 
@@ -191,7 +193,7 @@ The site has a light theme only. The district is fixed in warm daylight and ever
 
 The palette is limestone paper and warm ink, with no chromatic accent.
 
-- **Paper (`#F4F1EA`)** is the page background and is identical to the scene's fog and horizon. This equality is a hard rule: if the scene's fog is retuned, paper moves with it.
+- **Paper (`#F4F1EA`)** is the page background. It is warm, while the scene's haze is cool; the two meet at the canvas edge and are not required to match.
 - **Paper raised (`#FBF9F5`)** is the surface for anything sitting over the canvas or lifted off the page: scene labels, control bar, building overview, inputs, notices.
 - **Ink (`#1F1D1A`)** is the text color and the primary action color. It is a warm near-black, never `#000`. **Ink hover (`#36332E`)** is its hover state.
 - **Ink muted (`#5E5850`)** is for secondary text: eyebrows, captions, metadata. It passes 6.2:1 on paper.
@@ -239,7 +241,7 @@ Figures in the story are approximate targets and are labeled as such, for exampl
 
 ### District overview
 
-The canvas fills the viewport. The wordmark sits top-left on the paper haze. The control bar (rotate, zoom, Reset view, motion, simple view, building index) is a single paper-raised strip anchored bottom-center on desktop. On narrow viewports it sits at the bottom edge with all controls reachable in one row or a wrapped second row, never hidden behind a menu. The building overview opens as a side panel (380px) on desktop and as a bottom sheet on narrow viewports. It never covers the selected building's label.
+The canvas fills the viewport. The wordmark sits top-left over the sky. The control bar (rotate, zoom, Reset view, motion, simple view, building index) is a single paper-raised strip anchored bottom-center on desktop. On narrow viewports it sits at the bottom edge with all controls reachable in one row or a wrapped second row, never hidden behind a menu. The building overview opens as a side panel (380px) on desktop and as a bottom sheet on narrow viewports. It never covers the selected building's label.
 
 ### Building index
 
@@ -262,8 +264,8 @@ Every concept visualization has a caption below it. The caption opens with the e
 
 The design is flat. Depth belongs to the 3D scene, not to the UI.
 
-- No drop shadows, no backdrop blur, no translucent glass. Blur costs render budget ([#24](https://github.com/danielluis07/habitta/issues/24)), and text on glass over drifting clouds cannot reliably hold AA contrast.
-- Surfaces over the canvas are solid **paper raised** with a 1px border-control outline. Because paper matches the fog, they still feel part of the atmosphere.
+- No drop shadows, no backdrop blur, no translucent glass. Blur costs render budget ([#24](https://github.com/danielluis07/habitta/issues/24)), and text on glass over a busy landscape cannot reliably hold AA contrast.
+- Surfaces over the canvas are solid **paper raised** with a 1px border-control outline. Their outline, not a tint of the scene, separates them from the landscape behind.
 - Layering is expressed by surface color (paper → paper raised) and borders, never by shadow.
 
 ## Shapes
@@ -292,14 +294,13 @@ The design is flat. Depth belongs to the 3D scene, not to the UI.
 
 These tokens are shared by the React Three Fiber scene and by the reference renders used in concept-visualization production ([research](docs/research/concept-visualization-production-workflow.md)). They cover color and atmosphere only. Geometry, the asset contract, and budgets live in [#20](https://github.com/danielluis07/habitta/issues/20), [#24](https://github.com/danielluis07/habitta/issues/24), and the [3D approach research](docs/research/3d-scene-and-asset-approach.md).
 
-- **Sky:** a vertical gradient from **scene sky horizon** (`#F4F1EA`, equal to paper) at the horizon to **scene sky zenith** (`#B9C7CF`), a soft desaturated blue. There is no saturated blue anywhere.
-- **Fog:** distance fog in **scene fog** (`#F4F1EA`, equal to paper). Distant geometry dissolves into the page background.
-- **Clouds:** 2–4 non-volumetric layers in **scene cloud** (`#FAF8F3`), a warm white slightly lighter than paper and never pure white. Clouds lie below the occupied terraces and partly veil the landscape.
-- **Terrain:** muted sage and dry grass (**scene terrain grass**, `#A5AE95`), with lanes and paths in **scene terrain lane** (`#CFC7B6`). The terrain may be gently stylized.
+- **Sky:** a vertical gradient from **scene haze** (`#DAE2E1`) at the horizon to **scene sky zenith** (`#BCD0DA`), a cool, pale blue-grey. There is no saturated blue anywhere.
+- **Haze:** distance fog in **scene haze**, the same colour as the sky at the horizon, so distant ground dissolves into the sky and layered ranges fade toward it. There are no clouds.
+- **Landscape:** a Mediterranean highland that continues to the horizon: the district's slope climbs north to a ridge, and the valley opens south to a lake, with mountain ranges beyond. Open ground is muted sage (**scene terrain grass**, `#A5AE95`) in patches of dry grass (**scene terrain dry**, `#B4B094`) and scrub (**scene terrain scrub**, `#949D80`), with **scene terrain rock** (`#B8B1A3`) on steep and high ground. The lake is **scene lake** (`#9EB3B7`). Lanes and paths are **scene terrain lane** (`#CFC7B6`). The terrain may be gently stylized and is low-poly in the distance.
 - **Buildings:** true material colors from the accepted briefs ([#11](https://github.com/danielluis07/habitta/issues/11)). Crest: oak, limestone, plaster, bronze. Contour: textured concrete, terrazzo, stone, timber. Grove: lime render, buff brick, clay, oak. The buildings stay architecturally plausible and are never stylized or re-tinted to match the UI.
 - **Light:** warm daylight from the southeast reference sun (**scene sun**, `#FFF1DC`), late morning and about 40° high, consistent with every concept visualization. The scene grades with a neutral tone map, so warmth comes from the light and never from a tint over the buildings.
 
-The scene hex values may be tuned against reference renders. Fog and sky horizon must stay equal to paper.
+The scene hex values may be tuned against reference renders. The fog and the sky at the horizon must stay one colour, **scene haze**.
 
 ## Motion
 
@@ -307,14 +308,14 @@ This section describes the visual character of motion only. When motion runs, an
 
 - **Camera fly-to** (selecting a building, returning, Reset view): 1.2–1.6s, ease-in-out, with no overshoot.
 - **Panels and notices:** fade plus an 8px translate over about 200ms, ease-out. Exits are slightly faster.
-- **Cloud drift:** slow enough to be felt as ambience rather than noticed as movement.
+- **Nothing moves on its own.** The camera fly-to is the district's only motion; a still view is a still image.
 - **Never:** parallax, scroll-jacking, spring or bounce easing, or animated reveals of story text.
 
 ## Do's and Don'ts
 
 **Do**
 
-- Keep paper equal to the scene's fog and sky horizon.
+- Keep the scene's fog and sky horizon one colour, scene haze.
 - Let the buildings, landscape, and concept visualizations supply all the color.
 - Use the eyebrow for every "Imagined concept", "Concept visualization", and "Schematic, not to scale" disclosure.
 - Use border control (3:1) for any interactive boundary; keep hairlines decorative.

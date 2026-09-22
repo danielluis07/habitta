@@ -15,7 +15,7 @@ export type SceneProps = {
   savedViewpoint: Viewpoint | null;
   viewpointRef: Ref<SceneHandle>;
   onSelect: (slug: ConceptSlug, trigger: HTMLElement) => void;
-  /** Whether the district may move. With motion off, camera changes are instant and the scene is still. */
+  /** Whether the camera flies between views. With motion off, camera changes are instant. Nothing else moves. */
   motion: boolean;
   /** Reports that the scene can't be used, switching the page to simple view. */
   onSimpleView: (reason: Exclude<SimpleViewReason, "manual">) => void;

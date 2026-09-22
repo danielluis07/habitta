@@ -11,13 +11,19 @@ const plots = {
   contour: { origin: [48, 16.2, -8], size: [56, 48] },
   grove: { origin: [-48, 9.2, 52], size: [54, 48] },
 } as const;
-const placeholder = { placeholder: true, revision: "placeholder-r0", source: "scripts/generate-placeholder-models.ts" };
+const placeholder = { placeholder: true, revision: "placeholder-r1", source: "scripts/generate-placeholder-models.ts" };
+// The occupied district is one even slope, rising north. The plots, lane and
+// paths sit on it; the landscape beyond blends out from its edge.
 const terrainHeight = (z: number) => (100 - z) * 0.12;
+const districtBounds = { halfWidth: 110, halfDepth: 100 };
+const waterLevel = -64;
 
 /** A material batch, with flat normals and indexed triangles. */
 class Geometry {
   positions: number[] = [];
   normals: number[] = [];
+  /** Optional linear vertex colours, one RGB triple per position. */
+  colors: number[] = [];
   indices: number[] = [];
 
   /** A flat convex face; its winding sets the normal. */
@@ -67,10 +73,14 @@ class Geometry {
   }
 }
 
-function material(document: Document, name: string, hex: string): Material {
-  // Design tokens are sRGB; glTF material factors are linear.
-  const rgb = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
+// Design tokens are sRGB; glTF material factors and vertex colours are linear.
+function linear(hex: string) {
+  return [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
     .map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+}
+
+function material(document: Document, name: string, hex: string): Material {
+  const rgb = linear(hex);
   return document.createMaterial(name).setBaseColorFactor([rgb[0], rgb[1], rgb[2], 1])
     .setMetallicFactor(0).setRoughnessFactor(0.9);
 }
@@ -83,8 +93,9 @@ function floats(document: Document, type: "VEC3" | "VEC4", values: number[]) {
 function primitive(document: Document, geometry: Geometry, surface: Material) {
   const buffer = document.getRoot().listBuffers()[0];
   const indices = document.createAccessor().setType("SCALAR").setArray(new Uint32Array(geometry.indices)).setBuffer(buffer);
-  return document.createPrimitive().setAttribute("POSITION", floats(document, "VEC3", geometry.positions))
+  const result = document.createPrimitive().setAttribute("POSITION", floats(document, "VEC3", geometry.positions))
     .setAttribute("NORMAL", floats(document, "VEC3", geometry.normals)).setIndices(indices).setMaterial(surface);
+  return geometry.colors.length ? result.setAttribute("COLOR_0", floats(document, "VEC3", geometry.colors)) : result;
 }
 
 function attach(document: Document, parent: Node, name: string, geometry: Geometry, surface: Material) {
@@ -200,11 +211,133 @@ function building(document: Document, concept: Concept) {
   return root;
 }
 
+const smoothstep = (from: number, to: number, value: number) => {
+  const t = Math.min(Math.max((value - from) / (to - from), 0), 1);
+  return t * t * (3 - 2 * t);
+};
+
+function hash(x: number, z: number, seed: number) {
+  let h = (Math.imul(x, 374761393) + Math.imul(z, 668265263) + Math.imul(seed, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Fractal value noise in [0, 1], with its largest features `wavelength` metres apart. */
+function noise(x: number, z: number, wavelength: number, seed: number, octaves = 3) {
+  let total = 0;
+  let weight = 0;
+  for (let octave = 0; octave < octaves; octave++) {
+    const u = x / wavelength * 2 ** octave;
+    const v = z / wavelength * 2 ** octave;
+    const [x0, z0] = [Math.floor(u), Math.floor(v)];
+    const [fx, fz] = [smoothstep(0, 1, u - x0), smoothstep(0, 1, v - z0)];
+    const corner = (dx: number, dz: number) => hash(x0 + dx, z0 + dz, seed + octave);
+    const north = corner(0, 0) + (corner(1, 0) - corner(0, 0)) * fx;
+    const south = corner(0, 1) + (corner(1, 1) - corner(0, 1)) * fx;
+    total += (north + (south - north) * fz) * 0.5 ** octave;
+    weight += 0.5 ** octave;
+  }
+  return total / weight;
+}
+
+/**
+ * The highland around the district, after the concept visualizations: the
+ * slope climbs north to a ridge, the valley falls south to a lake between
+ * flanking hills, and mountain ranges close every horizon.
+ */
+function landscapeHeight(x: number, z: number) {
+  const distance = Math.hypot(x, z);
+  const regional = z < -100 ? 24 + 40 * (1 - Math.exp((z + 100) * 0.12 / 40))
+    : z < 100 ? terrainHeight(z)
+    : -84 * smoothstep(100, 700, z) + 0.3 * Math.max(z - 1150, 0);
+  const ridge = 28 * Math.exp(-(((z + 240 - 30 * Math.sin(x / 260)) / 90) ** 2));
+  const across = Math.abs(x - 50 * Math.sin(z / 380));
+  const valleyWidth = 170 + 0.35 * Math.max(z, 0);
+  const flanks = 120 * smoothstep(valleyWidth, valleyWidth + 450, across) * smoothstep(-150, 250, z);
+  const peaks = (1 - Math.abs(2 * noise(x, z, 700, 11) - 1)) ** 2;
+  const ranges = 220 * smoothstep(900, 1900, distance) * peaks;
+  const rolling = 14 * (noise(x, z, 160, 3) - 0.5) * (1 - smoothstep(700, 1300, distance));
+  return regional + ridge + flanks + ranges + rolling;
+}
+
+/** The ground height anywhere: the district's slope inside it, blending into the landscape. */
+function groundHeight(x: number, z: number) {
+  const outside = Math.hypot(Math.max(Math.abs(x) - districtBounds.halfWidth, 0), Math.max(Math.abs(z) - districtBounds.halfDepth, 0));
+  const blend = smoothstep(0, 160, outside);
+  return terrainHeight(z) * (1 - blend) + landscapeHeight(x, z) * blend;
+}
+
+/**
+ * Grid lines 10 m apart across the district, then widening outward to
+ * `extent`. Far enough that, from any camera the controls allow, the fog
+ * swallows the ground before its edge.
+ */
+function gridLines(inner: number, extent: number) {
+  const lines = [];
+  for (let value = 0; value <= inner; value += 10) lines.push(value);
+  for (let step = 10; lines.at(-1)! < extent;) {
+    step *= 1.12;
+    lines.push(Math.min(lines.at(-1)! + step, extent));
+  }
+  return [...lines.slice(1).reverse().map((value) => -value), ...lines];
+}
+
+/** The terrain as one smooth-shaded, vertex-coloured grid, and a lookup of its surface. */
+function terrain() {
+  const xs = gridLines(120, 3200);
+  const zs = gridLines(120, 3200);
+  const heights = zs.map((z) => xs.map((x) => groundHeight(x, z)));
+  const ground = new Geometry();
+  const [grass, dry, scrub, rock] = ["#A5AE95", "#B4B094", "#949D80", "#B8B1A3"].map(linear);
+  const mix = (a: number[], b: number[], t: number) => a.map((value, i) => value + (b[i] - value) * t);
+  const slope = (lines: number[], values: number[], i: number) => {
+    const [a, b] = [Math.max(i - 1, 0), Math.min(i + 1, lines.length - 1)];
+    return (values[b] - values[a]) / (lines[b] - lines[a]);
+  };
+
+  zs.forEach((z, j) => xs.forEach((x, i) => {
+    const y = heights[j][i];
+    const normal = [-slope(xs, heights[j], i), 1, -slope(zs, heights.map((row) => row[i]), j)];
+    const length = Math.hypot(...normal);
+    ground.positions.push(x, y, z);
+    ground.normals.push(...normal.map((value) => value / length));
+    // Dry grass and scrub in patches, bare rock where the ground is steep or high.
+    let color = mix(grass, dry, smoothstep(0.45, 0.62, noise(x, z, 110, 5)));
+    color = mix(color, scrub, smoothstep(0.55, 0.72, noise(x, z, 70, 9)));
+    color = mix(color, rock, Math.max(smoothstep(0.93, 0.8, 1 / length), smoothstep(160, 260, y)));
+    ground.colors.push(...color);
+  }));
+  for (let j = 0; j < zs.length - 1; j++) {
+    for (let i = 0; i < xs.length - 1; i++) {
+      const northwest = j * xs.length + i;
+      const southwest = northwest + xs.length;
+      ground.indices.push(northwest, southwest, northwest + 1, northwest + 1, southwest, southwest + 1);
+    }
+  }
+
+  /** The height of the triangulated surface itself, so props rest on what is drawn. */
+  function surface(x: number, z: number) {
+    const cell = (lines: number[], value: number) => Math.min(Math.max(lines.findLastIndex((line) => line <= value), 0), lines.length - 2);
+    const [i, j] = [cell(xs, x), cell(zs, z)];
+    const s = (x - xs[i]) / (xs[i + 1] - xs[i]);
+    const t = (z - zs[j]) / (zs[j + 1] - zs[j]);
+    const [nw, ne, sw, se] = [heights[j][i], heights[j][i + 1], heights[j + 1][i], heights[j + 1][i + 1]];
+    return s + t <= 1 ? nw + s * (ne - nw) + t * (sw - nw) : se + (1 - s) * (sw - se) + (1 - t) * (ne - se);
+  }
+  return { ground, surface };
+}
+
 function district(document: Document): Node {
   const root = document.createNode("district_PLACEHOLDER_landscape").setExtras(placeholder);
-  const terrain = new Geometry();
-  terrain.quad([-110,0,100], [110,0,100], [110,24,-100], [-110,24,-100]);
-  attach(document, root, "terrain_north_uphill", terrain, material(document, "Dry grass", "#A5AE95"));
+  const { ground, surface } = terrain();
+  attach(document, root, "terrain_highland_to_horizon", ground, material(document, "Highland ground", "#FFFFFF"));
+  // The lake fills the valley floor wherever the ground dips below the water.
+  const lake = new Geometry();
+  lake.face(...Array.from({ length: 32 }, (_, i): vec3 => {
+    const angle = i / 32 * Math.PI * 2;
+    return [Math.cos(angle) * 700, waterLevel, 850 - Math.sin(angle) * 600];
+  }));
+  attach(document, root, "lake_south_valley", lake, material(document, "Lake", "#9EB3B7").setRoughnessFactor(0.45));
   const benches = new Geometry();
   for (const { origin: [x,y,z], size: [w,d] } of Object.values(plots)) benches.box([x,y-4,z], [w,8,d]);
   attach(document, root, "separate_plot_benches", benches, material(document, "Plot stone", "#CFC7B6"));
@@ -225,7 +358,21 @@ function district(document: Document): Node {
     [[48,16.3,16], [-10,terrainHeight(0)+0.25,0]],
     [[-21,9.3,52], [-20,terrainHeight(20)+0.25,20]],
   ];
+  // Past the district the lane runs on across the landscape, draped on the ground.
+  const onward = ([
+    [[-100,50], [-170,95], [-240,170], [-290,280], [-300,420]],
+    [[95,-55], [170,-80], [270,-95], [400,-140], [560,-170]],
+  ] as const).map((route) => route.slice(1).flatMap(([x, z], i): vec3[] => {
+    const [fromX, fromZ] = route[i];
+    const steps = Math.ceil(Math.hypot(x - fromX, z - fromZ) / 10);
+    return Array.from({ length: steps + (i === 0 ? 1 : 0) }, (_, step): vec3 => {
+      const t = (step + (i === 0 ? 0 : 1)) / steps;
+      const [px, pz] = [fromX + (x - fromX) * t, fromZ + (z - fromZ) * t];
+      return [px, surface(px, pz) + 0.25, pz];
+    });
+  }));
   ribbon(lane, 4);
+  for (const points of onward) ribbon(points, 4);
   for (const points of plotPaths) ribbon(points, 2);
   attach(document, root, "connecting_lane_and_paths", paths, material(document, "Lane and paths", "#CFC7B6"));
 
@@ -261,6 +408,31 @@ function district(document: Document): Node {
     const scale = 0.75 + next() * 0.5;
     trees.push({ at: [x, terrainHeight(z), z], size: [scale, scale * (0.85 + next() * 0.35), scale], turn: next() * Math.PI });
   }
+
+  // Beyond the district, groves of trees, cypresses and scrub thin out into
+  // the haze. They keep clear of the water and the onward lane.
+  const scrub: Instance[] = [];
+  const cypresses: Instance[] = [];
+  const wild = seeded(37);
+  const nearDistrict = (x: number, z: number) =>
+    Math.abs(x) < districtBounds.halfWidth + 6 && Math.abs(z) < districtBounds.halfDepth + 6;
+  const nearOnward = (x: number, z: number) => onward.some((points) =>
+    points.slice(1).some((b, i) => distanceToSegment(x, z, points[i], b) < 5));
+  for (let attempt = 0; attempt < 30000 && scrub.length + cypresses.length + trees.length < 1400; attempt++) {
+    const angle = wild() * Math.PI * 2;
+    const radius = 125 + wild() ** 1.6 * 750;
+    const [x, z] = [Math.cos(angle) * radius, Math.sin(angle) * radius];
+    const y = surface(x, z);
+    const kind = wild();
+    const scale = 0.8 + wild() * 0.6;
+    if (noise(x, z, 120, 21) < 0.45 || nearDistrict(x, z) || y < waterLevel + 2 || nearOnward(x, z)) continue;
+    const at: vec3 = [x, y - 0.3, z];
+    const turn = wild() * Math.PI;
+    if (kind < 0.6) scrub.push({ at, size: [scale * 2, scale * 1.4, scale * 2], turn });
+    else if (kind < 0.85) trees.push({ at, size: [scale, scale * (0.85 + wild() * 0.35), scale], turn });
+    else cypresses.push({ at, size: [scale, scale * (0.9 + wild() * 0.4), scale], turn });
+  }
+
   const trunk = new Geometry();
   trunk.box([0, 1.5, 0], [0.5, 3, 0.5]);
   const canopy = new Geometry();
@@ -269,6 +441,12 @@ function district(document: Document): Node {
     [trunk, material(document, "Bark", "#7A6A55")],
     [canopy, material(document, "Planting", "#7C8A6C")],
   ], trees);
+  const cypress = new Geometry();
+  cypress.spindle([0, 5, 0], 1, 5.2, 5);
+  instanced(document, root, "vegetation_cypress_instanced", [[cypress, material(document, "Cypress", "#5F6E57")]], cypresses);
+  const bush = new Geometry();
+  bush.spindle([0, 0.3, 0], 1.2, 0.9, 5);
+  instanced(document, root, "vegetation_scrub_instanced", [[bush, material(document, "Scrub", "#76826A")]], scrub);
   return root;
 }
 

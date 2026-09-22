@@ -2,21 +2,10 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useImperativeHandle, useLayoutEffect, useRef } from "react";
-import { Box3, MathUtils, Sphere, Vector3, type Object3D, type PerspectiveCamera } from "three";
+import { Vector3, type Object3D, type PerspectiveCamera } from "three";
 import type { SceneProps } from "@/components/district-scene";
-import { collection } from "@/lib/collection";
-import { selectedSlug, type Viewpoint } from "@/lib/journey";
-
-// Fit the exported geometry, including the space above its DOM label. This
-// keeps framing valid when a canonical export replaces placeholder massing.
-function frame(bounds: Box3, camera: PerspectiveCamera): Viewpoint {
-  const sphere = bounds.getBoundingSphere(new Sphere());
-  const verticalFov = MathUtils.degToRad(camera.fov);
-  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
-  const distance = sphere.radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.2;
-  const position = new Vector3(0.65, 0.65, 1).normalize().multiplyScalar(distance).add(sphere.center);
-  return { position: position.toArray(), target: sphere.center.toArray() };
-}
+import { buildingFill, frame, framingPoints, overviewFill } from "@/components/district-scene/framing";
+import { selectedSlug } from "@/lib/journey";
 
 type Flight = {
   fromPosition: Vector3;
@@ -49,17 +38,9 @@ export function DistrictCamera({
     flight.current = null;
     if (!active || size.width <= 0 || size.height <= 0) return;
 
-    model.updateWorldMatrix(true, true);
-    const bounds = new Box3();
-    for (const concept of collection) {
-      if (slug && concept.slug !== slug) continue;
-      const building = model.getObjectByName(concept.scene.selectionTarget)!;
-      const anchor = model.getObjectByName(concept.scene.labelAnchor)!;
-      bounds.union(new Box3().setFromObject(building));
-      bounds.expandByPoint(anchor.getWorldPosition(new Vector3()).add(new Vector3(0, 8, 0)));
-    }
-
-    const destination = !slug && savedViewpoint ? savedViewpoint : frame(bounds, camera);
+    const destination = !slug && savedViewpoint
+      ? savedViewpoint
+      : frame(framingPoints(model, slug), camera.fov, camera.aspect, slug ? buildingFill : overviewFill);
     const toPosition = new Vector3(...destination.position);
     const toTarget = new Vector3(...destination.target);
     // A flight to where the camera already is would render frames of a still view.

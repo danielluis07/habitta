@@ -63,7 +63,7 @@ test("repeated street, vegetation, roof and facade props are GPU-instanced", asy
     const batch = node.getExtension<InstancedMesh>("EXT_mesh_gpu_instancing");
     return batch ? [[node.getName(), batch.listAttributes()[0].getCount()] as const] : [];
   }));
-  const props = ["street_lights_instanced", "vegetation_trees_instanced",
+  const props = ["street_lights_instanced", "vegetation_trees_instanced", "vegetation_cypress_instanced", "vegetation_scrub_instanced",
     ...collection.flatMap(({ slug }) => [`${slug}_PLACEHOLDER_roof_props`, `${slug}_PLACEHOLDER_openings`])];
   for (const name of props) expect(instances.get(name)).toBeGreaterThan(1);
 });

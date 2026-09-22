@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { instrumentSans, newsreader } from "@/fonts";
 
 const description =
-  "Habitta is an architecture studio showing imagined residential concepts: three buildings, each with one featured residence, in a single district above the clouds.";
+  "Habitta is an architecture studio showing imagined residential concepts: three buildings, each with one featured residence, in a single highland district.";
 
 export const metadata: Metadata = {
   title: {

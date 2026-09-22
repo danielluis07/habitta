@@ -135,7 +135,7 @@ function SupportedScene(props: SceneProps) {
   const colors = useMemo((): AtmosphereColors => {
     const style = getComputedStyle(document.documentElement);
     const token = (name: string) => style.getPropertyValue(`--color-scene-${name}`).trim();
-    return { fog: token("fog"), zenith: token("sky-zenith"), cloud: token("cloud"), sun: token("sun") };
+    return { haze: token("haze"), zenith: token("sky-zenith"), sun: token("sun"), ground: token("terrain-grass") };
   }, []);
 
   useEffect(() => {
@@ -165,13 +165,13 @@ function SupportedScene(props: SceneProps) {
         // Khronos PBR Neutral keeps the buildings' true material hues; the
         // warmth comes from the sun, not from a tint over the image.
         gl={{ antialias: true, alpha: true, powerPreference: "low-power", toneMapping: NeutralToneMapping }}
-        style={{ background: colors.fog }}
+        style={{ background: colors.haze }}
         onCreated={({ gl }) => {
           // Labels are the keyboard interface; the canvas has no tab stop.
           gl.domElement.setAttribute("aria-hidden", "true");
           gl.domElement.tabIndex = -1;
         }}>
-        <Atmosphere colors={colors} motion={props.motion} />
+        <Atmosphere colors={colors} />
         <Suspense fallback={null}>
           <DistrictModel {...props} labels={labels} onReady={onReady} />
         </Suspense>

@@ -6,7 +6,7 @@ Habitta is a Next.js App Router site for a fictional architecture studio. The vi
 | --- | --- |
 | `app/` | Routes, page metadata, global styles, and the site icon. `/` opens the district; `app/buildings/[slug]/` and its `residence/` child provide direct links to the later journey stages. |
 | `components/` | Journey UI: `exploration.tsx` coordinates the visible stage, while the building index, overview, residence story, figure, and controls render its parts. |
-| `components/district-scene/` | Client-side Three.js scene, camera, model loading, clouds, atmosphere, and display controls. |
+| `components/district-scene/` | Client-side Three.js scene, camera framing, model loading, atmosphere, and display controls. |
 | `components/ui/` | Shared UI primitives. |
 | `lib/collection.ts` | Typed source of truth for the three concepts, their copy, image references, and scene bindings. |
 | `lib/provenance.ts` | Manifest of visualization assets and their review status. The collection resolves published visualizations through accepted entries here. |

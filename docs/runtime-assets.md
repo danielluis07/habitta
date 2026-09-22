@@ -8,7 +8,7 @@ Commit these self-contained glTF 2.0 binary files in `public/models/`. Next.js s
 
 | File | Contents | When loaded |
 | --- | --- | --- |
-| `district-low.glb` | Terrain, lanes and paths, separate plots, recognizable low-detail versions of all three buildings | Opening scene |
+| `district-low.glb` | The surrounding landscape to the horizon (terrain, lake, vegetation), lanes and paths, separate plots, recognizable low-detail versions of all three buildings | Opening scene |
 | `building-crest.glb` | Crest only | Crest selected |
 | `building-contour.glb` | Contour only | Contour selected |
 | `building-grove.glb` | Grove only | Grove selected |
@@ -33,7 +33,9 @@ The exact placeholder coordinates are a starting layout, not final architectural
 
 Final district and detailed models must be exported from **one canonical DCC source scene**, with the source revision recorded alongside the export and in visualization provenance. Low and high detail preserve every recognizable exterior fact: silhouette, proportions, floor count, major materials, facade/opening/loggia patterns, indoor/outdoor relationships, plot and district position. Detail adds fidelity to the same design. Production review compares both exports with that source and the accepted briefs; automated geometry counts cannot establish architectural agreement.
 
-The committed files are **development placeholders**, exempt from DCC authorship. [`scripts/generate-placeholder-models.ts`](../scripts/generate-placeholder-models.ts) is their reproducible source. It uses the same massing for the district and individual exports: Crest has twelve levels and south recesses, Contour has four levels stepping north, and Grove is a two-storey ring around an open court. Each sits on its own bench connected to the lane by a path. Repeated props are GPU instances (`EXT_mesh_gpu_instancing`), one draw per part however often they repeat: lane lights and trees in the district, and each building's facade openings and roof planting in both detail levels. This is simplified massing, not an accepted final architectural model or concept visualization.
+The committed files are **development placeholders**, exempt from DCC authorship. [`scripts/generate-placeholder-models.ts`](../scripts/generate-placeholder-models.ts) is their reproducible source. It uses the same massing for the district and individual exports: Crest has twelve levels and south recesses, Contour has four levels stepping north, and Grove is a two-storey ring around an open court. Each sits on its own bench connected to the lane by a path. Repeated props are GPU instances (`EXT_mesh_gpu_instancing`), one draw per part however often they repeat: lane lights, trees, cypresses and scrub in the district, and each building's facade openings and roof planting in both detail levels. This is simplified massing, not an accepted final architectural model or concept visualization.
+
+The district export also carries the **surrounding landscape**, so the district never reads as an isolated plot. Inside the occupied district (±110 m east–west, ±100 m north–south) the ground is the even slope the plots, lane and paths sit on. Beyond it, the ground blends into a Mediterranean highland after the concept visualizations: it climbs north to a ridge, the valley falls south to a lake between flanking hills, and mountain ranges close every horizon. The ground is one smooth-shaded grid, 10 m apart across the district and widening outward to 3.2 km from the centre, with vertex colours (`COLOR_0`) for dry grass, scrub and rock instead of textures. The lane continues past the district, and vegetation thins out into the distance. A final export must keep a landscape that reaches past the scene's haze from every allowed camera position; `tests/district-atmosphere.test.ts` checks this against the ground's bounds.
 
 Each file's generator string, root/scene extras and selection-target extras mark it as a placeholder. Every building also has a visible roof plaque reading **PLACEHOLDER** with a diagonal hatch in the design system's paper and muted ink. A future scene UI should retain a visible Placeholder eyebrow while using these assets; metadata alone is not disclosure. Keep the geometry signs until final accepted models replace them.
 
@@ -61,7 +63,7 @@ Counts traverse the default scene, counting each mesh occurrence, each primitive
 
 `bun run build` runs this validation before Next.js. `bun test` also validates committed models and exercises broken/corrupt exports, missing or renamed bindings, transforms, oversized files, combined selection budgets, reused meshes and GPU instances. No WebGL is needed for these checks.
 
-These are asset costs, not complete frame measurements. Runtime clouds, other procedural meshes, shadow passes, material effects and UI rendering may add costs. Reserve headroom and check renderer triangle/draw-call statistics on representative iOS, Android, low-end laptop and desktop hardware. Opening size, triangle counts and draws do not prove the 30 FPS mobile / 60 FPS desktop targets; camera feel, visibility, architectural fidelity and performance remain manual review items.
+These are asset costs, not complete frame measurements. The runtime sky, other procedural meshes, shadow passes, material effects and UI rendering may add costs. Reserve headroom and check renderer triangle/draw-call statistics on representative iOS, Android, low-end laptop and desktop hardware. Opening size, triangle counts and draws do not prove the 30 FPS mobile / 60 FPS desktop targets; camera feel, visibility, architectural fidelity and performance remain manual review items.
 
 ## Replacing placeholders
 

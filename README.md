@@ -1,6 +1,6 @@
 # Habitta
 
-Habitta is a fictional architecture studio. This site is its portfolio of imagined residential concepts: three buildings, Crest, Contour and Grove, each with one featured residence, in a single district above the clouds.
+Habitta is a fictional architecture studio. This site is its portfolio of imagined residential concepts: three buildings, Crest, Contour and Grove, each with one featured residence, in a single highland district.
 
 - Domain terms: [`CONTEXT.md`](CONTEXT.md)
 - Visual system: [`DESIGN.md`](DESIGN.md)
