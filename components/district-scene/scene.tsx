@@ -1,21 +1,35 @@
 "use client";
 
-import { Canvas, useFrame, useLoader, type ThreeEvent } from "@react-three/fiber";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Vector3, type Object3D } from "three";
+import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { getConsoleFunction, setConsoleFunction, Vector3, type Object3D } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import WebGL from "three/addons/capabilities/WebGL.js";
 import { DistrictCamera } from "@/components/district-scene/camera";
 import { SceneLoading, type SceneProps } from "@/components/district-scene";
+import { bindBuilding, configureLoader, useDetailedBuilding } from "@/components/district-scene/models";
 import { Button } from "@/components/ui/button";
 import { collection, type ConceptSlug } from "@/lib/collection";
 import { selectedSlug } from "@/lib/journey";
 
 type LabelRefs = RefObject<Partial<Record<ConceptSlug, HTMLButtonElement>>>;
 
-function configureLoader(loader: GLTFLoader) {
-  loader.setMeshoptDecoder(MeshoptDecoder);
+// @react-three/fiber 9 (through 9.8) creates a THREE.Clock for every Canvas,
+// which three r183 deprecated in favour of THREE.Timer. Only that notice is
+// dropped; every other three.js message prints as it would by default.
+const threeConsole = getConsoleFunction();
+setConsoleFunction((type, message, ...params) => {
+  if (type === "warn" && message.startsWith("THREE.Clock: This module has been deprecated")) return;
+  if (threeConsole) return threeConsole(type, message, ...params);
+  const trace = params[0] as { isStackTrace?: boolean; getError: (message: string) => Error } | undefined;
+  if (trace?.isStackTrace) console[type](trace.getError(message));
+  else console[type](message, ...params);
+});
+
+// Hidden low-detail geometry still intersects rays; clicks pass through it.
+function shown(object: Object3D | null) {
+  for (; object; object = object.parent) if (!object.visible) return false;
+  return true;
 }
 
 function DistrictModel({ labels, onReady, ...props }: SceneProps & {
@@ -25,14 +39,29 @@ function DistrictModel({ labels, onReady, ...props }: SceneProps & {
   const gltf = useLoader(GLTFLoader, "/models/district-low.glb", configureLoader);
   // useLoader owns the cached resources; each mounted scene owns its graph.
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
-  const bindings = useMemo(() => collection.map((concept) => {
-    const target = model.getObjectByName(concept.scene.selectionTarget);
-    const anchor = model.getObjectByName(concept.scene.labelAnchor);
-    if (!target || !anchor) throw new Error(`Missing scene binding for ${concept.slug}`);
-    return { slug: concept.slug, target, anchor };
-  }), [model]);
+  const lowDetail = useMemo(() => collection.map(({ slug }) => bindBuilding(slug, model)), [model]);
+  const invalidate = useThree((state) => state.invalidate);
+  const detail = useDetailedBuilding(selectedSlug(props.stage), () => props.onSimpleView("assetFailed"));
+  // Selection and label positioning move to the detailed model once it's in.
+  const bindings = useMemo(
+    () => lowDetail.map((binding) => detail?.slug === binding.slug ? detail : binding),
+    [detail, lowDetail],
+  );
   const projected = useMemo(() => new Vector3(), []);
   const ready = useRef(false);
+
+  // The detail shares the district's world coordinates, so it replaces the
+  // low-detail building in place, within the same frame.
+  useLayoutEffect(() => {
+    if (!detail) return;
+    const replaced = lowDetail.find(({ slug }) => slug === detail.slug)!.target;
+    replaced.visible = false;
+    invalidate();
+    return () => {
+      replaced.visible = true;
+      invalidate();
+    };
+  }, [detail, invalidate, lowDetail]);
 
   useFrame(({ camera, size }) => {
     if (props.stage.name === "residence") return;
@@ -56,7 +85,7 @@ function DistrictModel({ labels, onReady, ...props }: SceneProps & {
   }, -1);
 
   function select(event: ThreeEvent<MouseEvent>) {
-    if (event.delta > 5) return;
+    if (event.delta > 5 || !shown(event.object)) return;
     let object: Object3D | null = event.object;
     while (object) {
       const binding = bindings.find(({ target }) => target === object);
@@ -74,6 +103,7 @@ function DistrictModel({ labels, onReady, ...props }: SceneProps & {
     <>
       <DistrictCamera {...props} model={model} />
       <primitive object={model} dispose={null} onClick={select} />
+      {detail ? <primitive object={detail.model} dispose={null} onClick={select} /> : null}
     </>
   );
 }
