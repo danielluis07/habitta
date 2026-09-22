@@ -21,9 +21,10 @@ type SimpleViewNoticeProps = {
 export function SimpleViewNotice({ reason, onDismiss }: SimpleViewNoticeProps) {
   return (
     <div className="px-4 md:px-10">
+      {/* On wide screens it stays clear of the 380px building overview panel. */}
       <div
         className={cn(
-          "flex max-w-2xl items-center gap-2",
+          "flex max-w-2xl items-center gap-2 md:max-w-[min(42rem,calc(100%-380px-1.5rem))]",
           reason &&
             "mb-6 rounded-sm border border-border-control bg-paper-raised py-1 pr-1 pl-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200",
         )}>

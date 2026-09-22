@@ -19,7 +19,7 @@ export function ControlBarButton({ className, ...props }: ComponentProps<typeof 
   return (
     <Button
       variant="ghost"
-      className={cn("px-3 hover:bg-paper hover:no-underline", className)}
+      className={cn("px-2.5 hover:bg-paper hover:no-underline", className)}
       {...props}
     />
   );
@@ -41,7 +41,7 @@ export function ControlSwitch({ label, checked, onCheckedChange, ref }: ControlS
       role="switch"
       aria-checked={checked}
       onClick={() => onCheckedChange(!checked)}
-      className="gap-2.5">
+      className="gap-2">
       {label}{" "}
       <span
         aria-hidden
