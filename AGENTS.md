@@ -20,6 +20,6 @@ English.
 
 Prefer the @ alias for imports (see docs/CONVENTIONS.md)
 
-# Impeccable
+# Design Guidelines
 
-Do NOT use impeccable
+Check DESIGN.md. Do NOT use impeccable
