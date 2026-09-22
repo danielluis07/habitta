@@ -1,17 +1,37 @@
-import type { Ref } from "react";
+import type { MouseEvent, Ref } from "react";
 import { ConceptStill } from "@/components/concept-still";
 import { Button } from "@/components/ui/button";
-import { collection } from "@/lib/collection";
+import { collection, type ConceptSlug } from "@/lib/collection";
+import { journeyPath } from "@/lib/journey";
 
 type BuildingIndexProps = {
   id: string;
   hidden: boolean;
   headingRef: Ref<HTMLHeadingElement>;
   onClose: () => void;
+  selectedSlug: ConceptSlug | undefined;
+  /** Selects a building in place. `trigger` is the entry's link, for returning focus. */
+  onSelect: (slug: ConceptSlug, trigger: HTMLElement) => void;
 };
 
-export function BuildingIndex({ id, hidden, headingRef, onClose }: BuildingIndexProps) {
+export function BuildingIndex({
+  id,
+  hidden,
+  headingRef,
+  onClose,
+  selectedSlug,
+  onSelect,
+}: BuildingIndexProps) {
   const headingId = `${id}-heading`;
+
+  function select(event: MouseEvent<HTMLAnchorElement>, slug: ConceptSlug) {
+    // Modified clicks still open the building's own URL in a new tab or window.
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    onSelect(slug, event.currentTarget);
+  }
 
   return (
     <section
@@ -39,7 +59,7 @@ export function BuildingIndex({ id, hidden, headingRef, onClose }: BuildingIndex
             <li key={concept.slug} className="border-b border-hairline">
               <article
                 aria-labelledby={nameId}
-                className="grid gap-4 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-10 md:py-6">
+                className="relative grid gap-4 py-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-10 md:py-6">
                 <ConceptStill
                   image={concept.building.exteriorStill}
                   sizes="(min-width: 640px) 40vw, 100vw"
@@ -47,7 +67,14 @@ export function BuildingIndex({ id, hidden, headingRef, onClose }: BuildingIndex
                 <div className="flex flex-col gap-2">
                   <p className="type-eyebrow text-ink-muted">{concept.building.role}</p>
                   <h3 id={nameId} className="type-display-lg">
-                    {concept.building.name}
+                    {/* The link covers the whole entry, and so does its focus outline. */}
+                    <a
+                      href={journeyPath({ name: "building", slug: concept.slug })}
+                      aria-current={concept.slug === selectedSlug ? "page" : undefined}
+                      onClick={(event) => select(event, concept.slug)}
+                      className="underline-offset-6 after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ink aria-[current=page]:underline">
+                      {concept.building.name}
+                    </a>
                   </h3>
                   <p className="max-w-[52ch] type-body-sm text-pretty">
                     {concept.building.description}
