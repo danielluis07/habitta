@@ -5,6 +5,7 @@ Habitta is a fictional architecture studio. This site is its portfolio of imagin
 - Domain terms: [`CONTEXT.md`](CONTEXT.md)
 - Visual system: [`DESIGN.md`](DESIGN.md)
 - Runtime models, export contract and budgets: [`docs/runtime-assets.md`](docs/runtime-assets.md)
+- District scene, journey boundary and verification: [`docs/district-scene.md`](docs/district-scene.md)
 - Product spec: [#12](https://github.com/danielluis07/habitta/issues/12)
 
 ## Development

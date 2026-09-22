@@ -112,6 +112,12 @@
 }
 
 /* Type roles (DESIGN.md › Typography). Display sizes step down on narrow viewports. */
+@utility placeholder-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg, transparent, transparent 7px, var(--color-hairline) 7px, var(--color-hairline) 8px
+  );
+}
+
 @utility type-wordmark {
   font-family: var(--font-display);
   font-size: 1.375rem;

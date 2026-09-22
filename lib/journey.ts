@@ -59,7 +59,7 @@ export type JourneyIntent =
   | { type: "continueExploring" }
   | { type: "resetView" }
   /** The URL changed underneath the journey, e.g. through browser back/forward. */
-  | { type: "followUrl"; path: string }
+  | { type: "followUrl"; path: string; viewpoint?: Viewpoint }
   | { type: "setMotion"; enabled: boolean }
   /** The visitor's simple view control and the scene's failures both switch through here. */
   | { type: "switchToSimpleView"; reason: SimpleViewReason }
@@ -101,7 +101,13 @@ export function journeyReducer(state: JourneyState, intent: JourneyIntent): Jour
       return { ...state, stage: districtStage, savedViewpoint: null };
     case "followUrl": {
       const stage = parseJourneyPath(intent.path);
-      return stage ? { ...state, stage } : state;
+      if (!stage) return state;
+      const leavingDistrict = state.stage.name === "district" && stage.name !== "district";
+      return {
+        ...state,
+        stage,
+        savedViewpoint: leavingDistrict ? intent.viewpoint ?? null : state.savedViewpoint,
+      };
     }
     // Preferences never change the stage or selection.
     case "setMotion":

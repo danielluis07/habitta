@@ -3,20 +3,39 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import type { Window as HappyDOMWindow } from "happy-dom";
-import type { ReactNode } from "react";
+import { useImperativeHandle, type ReactNode } from "react";
 import type { SceneProps } from "@/components/district-scene";
+import type { Viewpoint } from "@/lib/journey";
 
 // Seam 1: the real page in simple view. The 3D scene is swapped out at its
 // lazy, client-only module boundary, never stubbed from the inside. The
 // stand-in marks where the scene would load and keeps the props it was given,
 // so a test can report a failure the way the scene would.
-const scene: { props?: SceneProps } = {};
+const districtViewpoint: Viewpoint = { position: [140, 160, 220], target: [0, 20, 0] };
+const scene: { props?: SceneProps; viewpoint: Viewpoint } = { viewpoint: districtViewpoint };
 mock.module("@/components/district-scene/scene", () => ({
   default: function SceneStandIn(props: SceneProps) {
     scene.props = props;
-    return <div data-testid="district-scene" />;
+    useImperativeHandle(props.viewpointRef, () => ({ getViewpoint: () => scene.viewpoint }), []);
+    return (
+      <div data-testid="district-scene">
+        {(["crest", "contour", "grove"] as const).map((slug) => (
+          <button
+            key={slug}
+            aria-pressed={props.stage.name !== "district" && props.stage.slug === slug}
+            onClick={(event) => props.onSelect(slug, event.currentTarget)}>
+            {slug[0].toUpperCase() + slug.slice(1)}
+          </button>
+        ))}
+      </div>
+    );
   },
 }));
+
+afterEach(() => {
+  scene.viewpoint = districtViewpoint;
+  setSystemReducedMotion(false);
+});
 
 const { default: Home } = await import("@/app/page");
 const { default: BuildingPage, generateMetadata: buildingMetadata } = await import(
@@ -168,6 +187,84 @@ describe("arrival", () => {
 
     expect(indexToggle()).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("region", { name: "Building index" })).not.toBeInTheDocument();
+  });
+});
+
+describe("scene journey boundary", () => {
+  test("server renders the DOM journey without a canvas", () => {
+    const html = renderToString(<Home />);
+    expect(html).toContain("Building index");
+    expect(html).toContain("Imagined homes");
+    expect(html).not.toContain("<canvas");
+  });
+
+  test("keyboard label selection opens the same overview and restores focus on return", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    const label = screen.getByRole("button", { name: "Crest" });
+    await tabTo(user, label);
+    await user.keyboard("{Enter}");
+    expect(within(overview("Crest")).getByRole("heading", { name: "Crest" })).toHaveFocus();
+    expect(label).toHaveAttribute("aria-pressed", "true");
+    expect(window.location.pathname).toBe("/buildings/crest");
+    expect(scene.props?.savedViewpoint).toEqual(districtViewpoint);
+
+    await user.click(within(overview("Crest")).getByRole("button", { name: "Return to district" }));
+    expect(label).toHaveFocus();
+    expect(label).toHaveAttribute("aria-pressed", "false");
+    expect(scene.props?.stage).toEqual({ name: "district" });
+    expect(scene.props?.savedViewpoint).toEqual(districtViewpoint);
+  });
+
+  test("Tab passes through all scene labels and leaves the scene", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await tabTo(user, screen.getByRole("button", { name: "Crest" }));
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Contour" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Grove" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("region", { name: "District overview" }).contains(document.activeElement)).toBe(false);
+  });
+
+  test("index selection captures the scene viewpoint once and preserves it through a story and another building", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await openIndex(user);
+    await user.click(indexEntryLink("Contour"));
+    expect(scene.props?.savedViewpoint).toEqual(districtViewpoint);
+    scene.viewpoint = { position: [80, 50, 40], target: [48, 20, -8] };
+    await user.click(openResidenceLink("Contour"));
+    expect(scene.props?.stage).toEqual({ name: "residence", slug: "contour" });
+    expect(screen.getByTestId("district-scene")).not.toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Back to Contour" }));
+    await user.click(indexEntryLink("Grove"));
+    await user.click(openResidenceLink("Grove"));
+    await user.click(screen.getByRole("button", { name: "Return to district" }));
+    expect(scene.props?.stage).toEqual({ name: "district" });
+    expect(scene.props?.savedViewpoint).toEqual(districtViewpoint);
+  });
+
+  test("browser forward captures the current district viewpoint before framing a building", async () => {
+    const user = userEvent.setup();
+    await renderHome();
+    await user.click(screen.getByRole("button", { name: "Grove" }));
+    await goBack();
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    scene.viewpoint = { position: [180, 150, 210], target: [0, 18, 0] };
+    await goForward();
+    await waitFor(() => expect(window.location.pathname).toBe("/buildings/grove"));
+    expect(scene.props?.stage).toEqual({ name: "building", slug: "grove" });
+    expect(scene.props?.savedViewpoint).toEqual(scene.viewpoint);
+  });
+
+  test("a building deep link frames its selection with reduced motion passed to the scene", async () => {
+    setSystemReducedMotion(true);
+    await renderBuildingLink("crest");
+    expect(scene.props?.stage).toEqual({ name: "building", slug: "crest" });
+    expect(scene.props?.savedViewpoint).toBeNull();
+    expect(scene.props?.motion).toBe(false);
   });
 });
 
