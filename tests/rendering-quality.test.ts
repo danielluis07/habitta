@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
-import { DataTexture, Mesh, type Material, type Object3D } from "three";
+import { DataTexture, Mesh, ShaderLib, type Material, type MeshStandardMaterial, type Object3D } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { configureLoader, disposeModel, reflective, shade } from "@/components/district-scene/models";
+import { configureLoader, disposeModel, foliage, foliageMarker, patchFoliageShader, reflective, shade } from "@/components/district-scene/models";
 import {
   environmentMaps,
   FrameRateMonitor,
@@ -199,6 +199,25 @@ describe("glass and metal reflect the environment map", () => {
       expect(mesh.castShadow).toBe(!(mesh.material as Material).transparent);
     }
     expect(meshes(district).some((mesh) => !mesh.castShadow)).toBe(true);
+  });
+
+  test("leaf cards cast their cut-out and keep their leaning normals on both faces", () => {
+    shade(district, new DataTexture());
+    const cards = meshes(district).filter((mesh) => foliage(mesh.material as Material));
+    expect(cards.map(({ name }) => name)).toContain("vegetation_olives_instanced");
+    for (const mesh of cards) {
+      const material = mesh.material as MeshStandardMaterial;
+      expect(mesh.castShadow).toBe(true);
+      // three.js's shadow pass cuts the same leaves out of the shadow map.
+      expect(material.alphaTest).toBe(0.5);
+      expect(material.map).not.toBeNull();
+      expect(material.onBeforeCompile).toBe(patchFoliageShader);
+    }
+    const patched = materials(district).filter((material) => material.onBeforeCompile === patchFoliageShader);
+    expect(patched).toEqual([...new Set(cards.map((mesh) => mesh.material as Material))]);
+    const shader = { fragmentShader: ShaderLib.standard.fragmentShader };
+    patchFoliageShader(shader);
+    expect(shader.fragmentShader).toContain(`#undef DOUBLE_SIDED\n${foliageMarker}`);
   });
 
   test("unloading a detailed building keeps the shared map", () => {

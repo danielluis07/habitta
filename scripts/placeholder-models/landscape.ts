@@ -5,6 +5,7 @@ import { bake, Geometry, mix, normalize, type Layers, type MeshData, type vec3 }
 import { attach, instanced, linear, type Instance, type Materials } from "@/scripts/placeholder-models/gltf";
 import { hash, noise, seeded, smoothstep } from "@/scripts/placeholder-models/noise";
 import * as props from "@/scripts/placeholder-models/props";
+import * as vegetation from "@/scripts/placeholder-models/vegetation";
 
 // The occupied district is one even slope, rising north. The plots, lane and
 // paths sit on it; the landscape beyond blends out from its edge.
@@ -40,18 +41,31 @@ function groundHeight(x: number, z: number) {
 }
 
 /**
- * Grid lines 10 m apart across the district, then widening outward to
- * `extent`. Far enough that, from any framed view, the fog
- * swallows the ground before its edge.
+ * The ground the fixed views see, to where the haze is complete: the camera
+ * only looks north and west from the head of the valley (#22), so beyond
+ * these bounds the ground just has to be there, not detailed.
  */
-function gridLines(inner: number, extent: number) {
-  const lines = [];
-  for (let value = 0; value <= inner; value += 10) lines.push(value);
-  for (let step = 10; lines.at(-1)! < extent;) {
-    step *= 1.12;
-    lines.push(Math.min(lines.at(-1)! + step, extent));
-  }
-  return [...lines.slice(1).reverse().map((value) => -value), ...lines];
+export const seenGround = { west: -1800, east: 700, north: -1900, south: 650 };
+
+/**
+ * Grid lines 10 m apart across the district, then widening outward to
+ * `extent`: slowly to 700 m, faster across the hazy ground beyond, and
+ * fastest where no view looks, past `seen` (the bounds on this axis). Far
+ * enough that, from any framed view, the fog swallows the ground before
+ * its edge.
+ */
+function gridLines(inner: number, extent: number, seen: [number, number]) {
+  const side = (limit: number) => {
+    const lines: number[] = [];
+    for (let value = 0; value <= inner; value += 10) lines.push(value);
+    for (let step = 10; lines.at(-1)! < extent;) {
+      const last = lines.at(-1)!;
+      step *= last < 700 ? 1.12 : last < limit ? 1.2 : 1.8;
+      lines.push(Math.min(last + step, extent));
+    }
+    return lines;
+  };
+  return [...side(-seen[0]).slice(1).reverse().map((value) => -value), ...side(seen[1])];
 }
 
 type Route = { points: vec3[]; width: number };
@@ -102,8 +116,8 @@ const onPlot = (x: number, z: number, margin: number) => Object.values(plots).so
 
 /** The terrain as one smooth-shaded, vertex-coloured grid, and a lookup of its surface. */
 function terrain(routes: Route[]) {
-  const xs = gridLines(120, 3200);
-  const zs = gridLines(120, 3200);
+  const xs = gridLines(120, 3200, [seenGround.west, seenGround.east]);
+  const zs = gridLines(120, 3200, [seenGround.north, seenGround.south]);
   const heights = zs.map((z) => xs.map((x) => groundHeight(x, z)));
   const ground: MeshData = { positions: [], normals: [], colors: [], indices: [], layers: [] };
   const [grass, dry, scrubby, rock] = ["#A5AE95", "#B4B094", "#949D80", "#B8B1A3"].map(linear);
@@ -227,7 +241,16 @@ function sweep(geometry: Geometry, points: vec3[], section: (distance: number) =
   }
 }
 
-export function district(document: Document, material: Materials): Node {
+/**
+ * Where the fixed views see vegetation and rocks from nearest: the occupied
+ * district, which the building views frame, and the overview's foreground
+ * band south of it (docs/district-scene.md). Props here are the full
+ * versions; beyond, lighter ones stand in the haze.
+ */
+export const nearView = (x: number, z: number) =>
+  (Math.abs(x) < districtBounds.halfWidth + 20 && Math.abs(z) < districtBounds.halfDepth + 20) || (z > 0 && z < 250 && x > -140 && x < 300);
+
+export function district(document: Document, material: Materials, rocks: Record<"near" | "far", MeshData>): Node {
   const root = document.createNode("district_PLACEHOLDER_landscape").setExtras(placeholder);
   const onward = onwardRoutes.map((route) => route.map(([x, z]): vec3 => [x, 0, z]));
   const routes: Route[] = [
@@ -366,8 +389,11 @@ export function district(document: Document, material: Materials): Node {
   const olives: Instance[] = [];
   const farOlives: Instance[] = [];
   const cypresses: Instance[] = [];
+  const farCypresses: Instance[] = [];
   const scrub: Instance[] = [];
-  const rocks: Instance[] = [];
+  const farScrub: Instance[] = [];
+  const nearRocks: Instance[] = [];
+  const farRocks: Instance[] = [];
   const walls: Instance[] = [];
   const next = seeded(24);
   const clear = (x: number, z: number, margin: number) => !onPlot(x, z, margin) && !onRoute(x, z, margin) && inDistrict(x, z, -2);
@@ -409,7 +435,8 @@ export function district(document: Document, material: Materials): Node {
   // Beyond it, groves of olives, cypresses and scrub thin out into the
   // haze, with limestone outcrops and old terrace walls on the slopes.
   const wild = seeded(37);
-  for (let attempt = 0; attempt < 40000 && olives.length + farOlives.length + cypresses.length + scrub.length < 950; attempt++) {
+  const planted = () => olives.length + farOlives.length + cypresses.length + farCypresses.length + scrub.length + farScrub.length;
+  for (let attempt = 0; attempt < 40000 && planted() < 950; attempt++) {
     const angle = wild() * Math.PI * 2;
     const radius = 125 + wild() ** 1.6 * 750;
     const [x, z] = [Math.cos(angle) * radius, Math.sin(angle) * radius];
@@ -419,12 +446,14 @@ export function district(document: Document, material: Materials): Node {
     if (noise(x, z, 120, 21) < 0.45 || inDistrict(x, z, 6) || y < waterLevel + 2 || nearOnward(x, z, 2)) continue;
     const at: vec3 = [x, y - 0.3, z];
     const turn = wild() * Math.PI * 2;
-    if (kind < 0.5) scrub.push({ at, size: [size * 1.6, size * 1.2, size * 1.5], turn });
-    else if (kind < 0.8) (radius < 160 ? olives : farOlives).push({ at, size: [size, size * (0.85 + wild() * 0.35), size], turn });
-    else cypresses.push({ at, size: [size, size * (0.9 + wild() * 0.4), size], turn });
+    const near = nearView(x, z);
+    if (kind < 0.5) (near ? scrub : farScrub).push({ at, size: [size * 1.6, size * 1.2, size * 1.5], turn });
+    else if (kind < 0.8) (near ? olives : farOlives).push({ at, size: [size, size * (0.85 + wild() * 0.35), size], turn });
+    else (near ? cypresses : farCypresses).push({ at, size: [size, size * (0.9 + wild() * 0.4), size], turn });
   }
   const stones = seeded(53);
-  for (let attempt = 0; attempt < 20000 && rocks.length < 120; attempt++) {
+  const placedRocks = () => nearRocks.length + farRocks.length;
+  for (let attempt = 0; attempt < 20000 && placedRocks() < 120; attempt++) {
     const angle = stones() * Math.PI * 2;
     const radius = 100 + stones() ** 1.4 * 520;
     const [x, z] = [Math.cos(angle) * radius, Math.sin(angle) * radius];
@@ -433,10 +462,10 @@ export function district(document: Document, material: Materials): Node {
     if ((normal[1] > 0.97 && stones() > 0.25) || noise(x, z, 48, 29) < 0.45 || inDistrict(x, z, 3) || surface(x, z) < waterLevel + 1 || nearOnward(x, z, 2)) continue;
     const size = 0.6 + stones() ** 2 * 2.4;
     const tilt = orient(normal, stones() * Math.PI * 2);
-    for (let piece = 0; piece < 1 + Math.floor(stones() * 3) && rocks.length < 120; piece++) {
+    for (let piece = 0; piece < 1 + Math.floor(stones() * 3) && placedRocks() < 120; piece++) {
       const [px, pz] = [x + (stones() - 0.5) * 6 * size, z + (stones() - 0.5) * 6 * size];
       const s = size * (0.5 + stones() * 0.6);
-      rocks.push({ at: [px, surface(px, pz) - 0.15 * s, pz], size: [s * (0.9 + stones() * 0.5), s * (0.6 + stones() * 0.5), s], rotation: tilt });
+      (nearView(px, pz) ? nearRocks : farRocks).push({ at: [px, surface(px, pz) - 0.15 * s, pz], size: [s * (0.9 + stones() * 0.5), s * (0.6 + stones() * 0.5), s], rotation: tilt });
     }
   }
   // Terrace walls follow the contours of the gentler slopes, in runs.
@@ -464,11 +493,15 @@ export function district(document: Document, material: Materials): Node {
   }
 
   instanced(document, root, "street_lights_instanced", [[props.laneLight(), material("bronze")]], lights);
-  instanced(document, root, "vegetation_olives_instanced", [[props.olive(true), material("olive")]], olives);
-  instanced(document, root, "vegetation_far_olives_instanced", [[props.olive(false), material("olive")]], farOlives);
-  instanced(document, root, "vegetation_cypress_instanced", [[props.cypress(), material("cypress")]], cypresses);
-  instanced(document, root, "vegetation_scrub_instanced", [[props.scrub(), material("scrub")]], scrub);
-  instanced(document, root, "rocks_limestone_instanced", [[props.rock(), material("rock")]], rocks);
+  const foliage = material("foliage");
+  instanced(document, root, "vegetation_olives_instanced", [[vegetation.olive("near"), foliage]], olives);
+  instanced(document, root, "vegetation_far_olives_instanced", [[vegetation.olive("far"), foliage]], farOlives);
+  instanced(document, root, "vegetation_cypress_instanced", [[vegetation.cypress("near"), foliage]], cypresses);
+  instanced(document, root, "vegetation_far_cypress_instanced", [[vegetation.cypress("far"), foliage]], farCypresses);
+  instanced(document, root, "vegetation_scrub_instanced", [[vegetation.scrub("near"), foliage]], scrub);
+  instanced(document, root, "vegetation_far_scrub_instanced", [[vegetation.scrub("far"), foliage]], farScrub);
+  instanced(document, root, "rocks_limestone_instanced", [[rocks.near, material("rock")]], nearRocks);
+  instanced(document, root, "rocks_limestone_far_instanced", [[rocks.far, material("rockFar")]], farRocks);
   instanced(document, root, "terrace_walls_drystone_instanced", [[props.drystoneWall(), material("wall")]], walls);
   // Near trees cast a soft contact shade on the ground, tilted to lie on it.
   const shaded = [...olives, ...cypresses].filter(({ at }) => Math.hypot(at[0], at[2]) < 170);

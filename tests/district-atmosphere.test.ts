@@ -23,6 +23,7 @@ import {
 import { configureLoader } from "@/components/district-scene/models";
 import { collection, type ConceptSlug } from "@/lib/collection";
 import type { Viewpoint } from "@/lib/journey";
+import { seenGround } from "@/scripts/placeholder-models/landscape";
 
 // The scene's atmosphere and framing, without WebGL. Rendering tiers are in
 // rendering-quality.test.ts.
@@ -219,5 +220,33 @@ describe("landscape to the horizon", () => {
     expect(ground.max.x).toBeGreaterThan(position[0] + reach);
     expect(ground.min.z).toBeLessThan(position[2] - reach);
     expect(ground.max.z).toBeGreaterThan(position[2] + reach);
+  });
+
+  // The ground's grid coarsens fast beyond the bounds the fixed views see,
+  // so every point of it a view shows, short of the haze, must lie within them.
+  test.each(views)("the %s view on %s sees only the finely gridded ground", (_, device, slug) => {
+    const size = viewports[device];
+    const aspect = size.width / size.height;
+    const region = framingRegion(size, clearances[device][slug ? "building" : "overview"], slug ? 0 : overviewForeground);
+    const viewpoint = frame(framedPoints(slug), fov, aspect, slug ? buildingFill : overviewFill, region, slug ? buildingDirection : overviewDirection);
+    const view = camera(viewpoint, aspect, region);
+    const terrain = district.getObjectByName("terrain_highland_to_horizon") as Mesh;
+    const positions = terrain.geometry.getAttribute("position");
+    const index = terrain.geometry.getIndex()!;
+    const seen: Vector3[] = [];
+    // Each triangle's corners and centre: the ground itself, not the air above it.
+    for (let t = 0; t < index.count; t += 3) {
+      const corners = [0, 1, 2].map((k) => new Vector3().fromBufferAttribute(positions, index.getX(t + k)));
+      for (const point of [...corners, corners[0].clone().add(corners[1]).add(corners[2]).divideScalar(3)]) {
+        if (point.distanceTo(view.position) > fogFar) continue;
+        const projected = point.clone().project(view);
+        if (Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && projected.z < 1) seen.push(point);
+      }
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    for (const { x, z } of seen) {
+      expect(x).toBeWithin(seenGround.west, seenGround.east);
+      expect(z).toBeWithin(seenGround.north, seenGround.south);
+    }
   });
 });

@@ -163,7 +163,8 @@ test("repeated street, vegetation, rock, wall and planting props are GPU-instanc
   }));
   const props = [
     "street_lights_instanced", "vegetation_olives_instanced", "vegetation_far_olives_instanced", "vegetation_cypress_instanced",
-    "vegetation_scrub_instanced", "rocks_limestone_instanced", "terrace_walls_drystone_instanced", "vegetation_contact_shade_instanced",
+    "vegetation_far_cypress_instanced", "vegetation_scrub_instanced", "vegetation_far_scrub_instanced", "rocks_limestone_instanced",
+    "rocks_limestone_far_instanced", "terrace_walls_drystone_instanced", "vegetation_contact_shade_instanced",
     ...collection.map(({ slug }) => `${slug}_PLACEHOLDER_plants`),
   ];
   for (const name of props) expect(instances.get(name)).toBeGreaterThan(1);
