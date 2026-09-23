@@ -156,7 +156,7 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
   function returnHome(event: MouseEvent<HTMLAnchorElement>) {
     if (!isPlainClick(event)) return;
     event.preventDefault();
-    dispatch({ type: "resetView" });
+    dispatch({ type: "returnHome" });
   }
 
   function dismissNotice() {

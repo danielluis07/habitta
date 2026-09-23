@@ -57,7 +57,8 @@ export type JourneyIntent =
   | { type: "backToBuilding" }
   /** Leaves the end of a residence story for the district, to pick the next concept. */
   | { type: "continueExploring" }
-  | { type: "resetView" }
+  /** The wordmark: the district overview, from anywhere in the journey. */
+  | { type: "returnHome" }
   /** The URL changed underneath the journey, e.g. through browser back/forward. */
   | { type: "followUrl"; path: string; viewpoint?: Viewpoint }
   | { type: "setMotion"; enabled: boolean }
@@ -96,7 +97,7 @@ export function journeyReducer(state: JourneyState, intent: JourneyIntent): Jour
     case "continueExploring":
       if (state.stage.name !== "residence") return state;
       return { ...state, stage: districtStage };
-    case "resetView":
+    case "returnHome":
       // The default district overview, with the visitor's preferences kept.
       return { ...state, stage: districtStage, savedViewpoint: null };
     case "followUrl": {

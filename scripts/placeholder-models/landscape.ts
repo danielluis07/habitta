@@ -41,7 +41,7 @@ function groundHeight(x: number, z: number) {
 
 /**
  * Grid lines 10 m apart across the district, then widening outward to
- * `extent`. Far enough that, from any camera the controls allow, the fog
+ * `extent`. Far enough that, from any framed view, the fog
  * swallows the ground before its edge.
  */
 function gridLines(inner: number, extent: number) {
