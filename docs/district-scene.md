@@ -36,7 +36,7 @@ Excluded by design: clouds, particles, shadow maps, SSR, SSAO, HDR environments 
 
 **Pixel ratio.** `components/district-scene/pixel-ratio.ts` caps the drawing buffer at 1.5 on a capable desktop (fine hovering pointer and viewport ≥ 768 px) and at 1.0 on everything else. R3F clamps the device ratio into `[1, cap]`.
 
-**Instancing and culling.** Repeated props arrive as `EXT_mesh_gpu_instancing` nodes (see [runtime-assets.md](runtime-assets.md)). `GLTFLoader` turns them into `InstancedMesh` objects, whose bounds cover every instance, so three.js frustum culling stays enabled for all meshes. With the placeholders, the district opens at 27 asset draws (33 with a detailed building). The sky adds one runtime draw.
+**Instancing and culling.** Repeated props arrive as `EXT_mesh_gpu_instancing` nodes (see [runtime-assets.md](runtime-assets.md)). `GLTFLoader` turns them into `InstancedMesh` objects, whose bounds cover every instance, so three.js frustum culling stays enabled for all meshes. With the placeholders, the district opens at 38 asset draws (46 to 48 with a detailed building). The sky adds one runtime draw.
 
 ## Verification
 
@@ -92,3 +92,17 @@ The full-viewport review (#38) used headless Chromium with SwiftShader against t
 - Contrast was measured by hiding the overlaid text, then comparing every background pixel under each line box with the text colour. At the default framing, from 320 × 800 to 1440 × 900, the heading and intro held at least 9.3:1, the wordmark 11.6:1 and the 12px ink-muted eyebrow 4.96:1. In building views the wordmark held at least 6.1:1.
 - Short viewports (390 × 664, 320 × 568) and 200% and 400% zoom (720 × 450, 360 × 225, 320 × 180 CSS px) stacked the copy above the district on paper, with no horizontal scrolling.
 - The overview panel, bottom sheet, building index, simple view, and a direct residence URL behaved as before. Returning to the district restored the arrival framing.
+
+The richer-placeholder review ([#40](https://github.com/danielluis07/habitta/issues/40)) used headless Chromium with SwiftShader against the dev server, at 1440 × 1000 and 390 × 844. It counted WebGL draws per rendered frame after a resize, before the change (the #37 models) and after:
+
+| | Asset draws (validator) | Draws per frame, before | Draws per frame, after |
+| --- | --- | --- | --- |
+| Opening | 27 → 38 | 28 | 39 |
+| Crest selected | 33 → 46 | 18 | 26 |
+| Contour selected | 33 → 46 | 22 | 29 |
+| Grove selected | 33 → 48 | 26 | 38 |
+
+- Opening triangles went from 38,062 to 71,547 (mobile limit 75,000), and selections to at most 133,615 (limit 150,000). The opening GLB is 637 KB of its 2 MB.
+- Each building was captured with its detailed GLB held back and then loaded. Both detail levels showed the same massing, openings, finishes and planting; the detail added frames, sills, rail posts, tile courses, louvres and furniture.
+- Glass read as glass in every view, with a pale sky sheen at the head of each pane. Contact shading showed at building bases, in reveals and loggias, and under trees.
+- With the camera still, the overview rendered 0 frames. No console errors or warnings.

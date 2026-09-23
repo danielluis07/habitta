@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { type Document, Primitive } from "@gltf-transform/core";
+import { type Document, type Node, Primitive } from "@gltf-transform/core";
 import { EXTMeshGPUInstancing, type InstancedMesh } from "@gltf-transform/extensions";
 import { collection } from "@/lib/collection";
 import { modelIO } from "@/scripts/model-io";
@@ -30,11 +30,15 @@ async function edit(directory: string, filename: string, change: (document: Docu
   await io.write(path, document);
 }
 
-// One primitive with many GPU instances: triangle budgets must count the instances,
-// while the primitive still contributes only one draw call.
+// One twelve-triangle primitive with many GPU instances: triangle budgets must
+// count the instances, while the primitive still contributes only one draw call.
 function addInstances(document: Document, count: number) {
   const root = document.getRoot();
-  const mesh = root.listNodes().find((node) => node.getName() === "crest_PLACEHOLDER_massing")!.getMesh()!;
+  const corners = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => [i & 1, (i >> 1) & 1, (i >> 2) & 1]);
+  const faces = [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [2, 6, 7, 3], [0, 4, 6, 2], [1, 3, 7, 5]];
+  const positions = document.createAccessor().setType("VEC3").setBuffer(root.listBuffers()[0])
+    .setArray(new Float32Array(faces.flatMap(([a, b, c, d]) => [a, b, c, a, c, d].flatMap((i) => corners[i]))));
+  const mesh = document.createMesh().addPrimitive(document.createPrimitive().setAttribute("POSITION", positions));
   const transforms = document.createAccessor().setType("VEC3")
     .setArray(new Float32Array(count * 3)).setBuffer(root.listBuffers()[0]);
   const instances = document.createExtension(EXTMeshGPUInstancing).setRequired(true)
@@ -56,16 +60,74 @@ test("every committed runtime GLB passes Khronos validation, scene bindings and 
   }
 });
 
-test("repeated street, vegetation, roof and facade props are GPU-instanced", async () => {
+test("repeated street, vegetation, rock, wall and planting props are GPU-instanced", async () => {
   const io = await modelIO();
   const document = await io.read(join(publicDirectory, "models/district-low.glb"));
   const instances = new Map(document.getRoot().listNodes().flatMap((node) => {
     const batch = node.getExtension<InstancedMesh>("EXT_mesh_gpu_instancing");
     return batch ? [[node.getName(), batch.listAttributes()[0].getCount()] as const] : [];
   }));
-  const props = ["street_lights_instanced", "vegetation_trees_instanced", "vegetation_cypress_instanced", "vegetation_scrub_instanced",
-    ...collection.flatMap(({ slug }) => [`${slug}_PLACEHOLDER_roof_props`, `${slug}_PLACEHOLDER_openings`])];
+  const props = [
+    "street_lights_instanced", "vegetation_olives_instanced", "vegetation_far_olives_instanced", "vegetation_cypress_instanced",
+    "vegetation_scrub_instanced", "rocks_limestone_instanced", "terrace_walls_drystone_instanced", "vegetation_contact_shade_instanced",
+    ...collection.map(({ slug }) => `${slug}_PLACEHOLDER_plants`),
+  ];
   for (const name of props) expect(instances.get(name)).toBeGreaterThan(1);
+});
+
+/** The building's own nodes, in one export: its selection target and everything under it. */
+async function buildingNodes(file: string, slug: string) {
+  const io = await modelIO();
+  const document = await io.read(join(publicDirectory, "models", file));
+  const target = document.getRoot().listNodes().find((node) => node.getName() === `${slug}_selection_target`)!;
+  const nodes: Node[] = [];
+  target.traverse((node) => nodes.push(node));
+  return nodes;
+}
+
+// The finishes each brief names, as the placeholder materials call them.
+const briefFinishes = {
+  crest: ["Warm limestone", "Rubble stone", "Chalk plaster", "Pale oak", "Dark bronze", "Glass"],
+  contour: ["Board-textured concrete", "Rubble stone", "Oiled timber", "Stone paving", "Dark bronze", "Glass"],
+  grove: ["Lime render", "Buff brick", "Clay tile", "Oiled timber", "Glass"],
+};
+
+test.each(collection.map(({ slug }) => slug))("%s has its brief's finishes at both detail levels, with glossy glass", async (slug) => {
+  const finishes = async (file: string) => {
+    const materials = (await buildingNodes(file, slug)).flatMap((node) => node.getMesh()?.listPrimitives().map((primitive) => primitive.getMaterial()!) ?? []);
+    const glass = materials.find((material) => material.getName() === "Glass")!;
+    expect(glass.getRoughnessFactor()).toBeLessThan(0.2);
+    return new Set(materials.map((material) => material.getName()));
+  };
+  const [low, high] = [await finishes("district-low.glb"), await finishes(`building-${slug}.glb`)];
+  for (const finish of briefFinishes[slug]) expect(low).toContain(finish);
+  // Detail adds fidelity, never another finish.
+  expect(high).toEqual(low);
+});
+
+test.each(collection.map(({ slug }) => slug))("%s has baked contact shading where its walls meet the ground", async (slug) => {
+  for (const file of ["district-low.glb", `building-${slug}.glb`]) {
+    // Vertex colours on the walls: at their foot, and anywhere.
+    const [foot, walls]: number[][] = [[], []];
+    for (const node of await buildingNodes(file, slug)) {
+      if (node.getExtension("EXT_mesh_gpu_instancing")) continue;
+      for (const primitive of node.getMesh()?.listPrimitives() ?? []) {
+        if (["Glass", "Placeholder sign"].includes(primitive.getMaterial()!.getName())) continue;
+        const [position, normal, color] = ["POSITION", "NORMAL", "COLOR_0"].map((name) => primitive.getAttribute(name)!);
+        expect(color).toBeTruthy();
+        for (let i = 0; i < position.getCount(); i++) {
+          if (Math.abs(normal.getElement(i, [0, 0, 0])[1]) > 0.2) continue;
+          const shade = color.getElement(i, [0, 0, 0, 0]).slice(0, 3).reduce((sum, value) => sum + value, 0) / 3;
+          walls.push(shade);
+          if (position.getElement(i, [0, 0, 0])[1] < 0.05) foot.push(shade);
+        }
+      }
+    }
+    expect(foot.length).toBeGreaterThan(0);
+    expect(foot.reduce((sum, value) => sum + value, 0) / foot.length).toBeLessThan(0.8);
+    // Walls in the open keep their full colour.
+    expect(Math.max(...walls)).toBeGreaterThan(0.95);
+  }
 });
 
 describe("invalid exports fail the release check", () => {
@@ -133,7 +195,7 @@ describe("invalid exports fail the release check", () => {
   test("opening triangle limits include GPU instances on both tiers", async () => {
     const directory = await fixture();
     const before = (await validateModels(directory)).scenarios[0];
-    await edit(directory, "district-low.glb", (document) => addInstances(document, 13_000));
+    await edit(directory, "district-low.glb", (document) => addInstances(document, Math.ceil((150_001 - before.triangles) / 12)));
     const report = await validateModels(directory);
     expect(report.errors.join("\n")).toMatch(/opening \(mobile\): .* triangles exceeds 75000/);
     expect(report.errors.join("\n")).toMatch(/opening \(desktop\): .* triangles exceeds 150000/);
@@ -142,7 +204,8 @@ describe("invalid exports fail the release check", () => {
 
   test("selection triangle limits include the district and the detail together", async () => {
     const directory = await fixture();
-    await edit(directory, "building-crest.glb", (document) => addInstances(document, 12_350));
+    const before = (await validateModels(directory)).scenarios.find(({ name }) => name === "selected crest")!;
+    await edit(directory, "building-crest.glb", (document) => addInstances(document, Math.ceil((150_001 - before.triangles) / 12)));
     const report = await validateModels(directory);
     expect(report.assets.find((asset) => asset.url === "/models/building-crest.glb")!.triangles).toBeLessThan(150_000);
     expect(report.errors.join("\n")).toMatch(/selected crest \(mobile\): .* triangles exceeds 150000/);
@@ -151,7 +214,8 @@ describe("invalid exports fail the release check", () => {
 
   test("desktop selected triangle limit", async () => {
     const directory = await fixture();
-    await edit(directory, "building-crest.glb", (document) => addInstances(document, 25_000));
+    const before = (await validateModels(directory)).scenarios.find(({ name }) => name === "selected crest")!;
+    await edit(directory, "building-crest.glb", (document) => addInstances(document, Math.ceil((300_001 - before.triangles) / 12)));
     expect((await validateModels(directory)).errors.join("\n")).toMatch(/selected crest \(desktop\): .* triangles exceeds 300000/);
   });
 
