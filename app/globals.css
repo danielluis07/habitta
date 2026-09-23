@@ -30,6 +30,16 @@
   }
 }
 
+/*
+ * Viewports too short to hold the arrival copy over the district's sky. There
+ * the copy sits above the district on paper instead (DESIGN.md › District overview).
+ */
+@custom-variant arrival-stacked {
+  @media (width < 48rem) and (height < 50rem), (height < 40rem) {
+    @slot;
+  }
+}
+
 /* Habitta palette (DESIGN.md). The chrome is paper and ink only; there is no chromatic accent. */
 @theme {
   --color-*: initial;

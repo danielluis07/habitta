@@ -48,6 +48,8 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
   const continueToIndexRef = useRef(false);
   // How far the district page was scrolled when a story replaced it.
   const districtScrollRef = useRef(0);
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   const stage = journey.stage;
   const overviewConcept = stage.name === "building" ? getConcept(stage.slug) : undefined;
@@ -57,6 +59,16 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
   // heads for the district. Once loaded, it stays mounted behind later stories.
   const [sceneWanted, setSceneWanted] = useState(stage.name !== "residence");
   if (!sceneWanted && stage.name !== "residence") setSceneWanted(true);
+  const sceneShown = sceneWanted && !simpleView;
+  // With the scene showing, the header and arrival copy sit over the district.
+  const overScene = sceneShown && !storyConcept;
+
+  useEffect(() => {
+    const header = headerRef.current!;
+    const observer = new ResizeObserver(() => setHeaderHeight(header.offsetHeight));
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   // The visitor's control and the scene's failures take the same path, so both
   // keep the stage and selection and both bring the notice.
@@ -152,13 +164,41 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
     simpleViewSwitchRef.current?.focus();
   }
 
+  const arrival = (
+    <section
+      aria-labelledby="arrival-heading"
+      className={cn(
+        "px-4 md:px-10",
+        sceneShown
+          ? "w-fit pt-4 pb-10 md:pt-6 motion-safe:transition-opacity motion-safe:duration-200"
+          : "pt-16 pb-16 md:pt-24 md:pb-24",
+        // Over the district, the copy steps aside for the building overview.
+        sceneShown && overviewConcept && "pointer-events-none opacity-0",
+      )}>
+      <p className="type-eyebrow text-ink-muted">Architecture studio</p>
+      <h1 id="arrival-heading" className="mt-4 max-w-[18ch] type-display-xl text-balance">
+        Imagined homes for a highland district
+      </h1>
+      <p className="mt-6 max-w-[56ch] text-pretty">
+        Habitta is an architecture studio showing imagined residential concepts. Every
+        building here, and the home featured in each, is a proposal for one invented
+        district, not a real development or listing.
+      </p>
+    </section>
+  );
+
   return (
     // Until the visitor chooses, `motion-safe` and `motion-reduce` follow the
     // system preference, so server-rendered panels never move against it.
     <div
-      className="flex min-h-dvh flex-col"
+      className="relative flex min-h-dvh flex-col"
       data-motion={journey.motionChoice === null ? undefined : motion ? "on" : "off"}>
-      <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-10 md:py-6">
+      <header
+        ref={headerRef}
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-10 md:py-6",
+          overScene && "absolute inset-x-0 top-0 z-10",
+        )}>
         <Link href="/" className="type-wordmark" onClick={returnHome}>
           Habitta
         </Link>
@@ -207,7 +247,7 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
 
         {/* A story replaces the district view, which keeps its scene and index state behind it. */}
         <div hidden={storyConcept !== undefined}>
-          {sceneWanted && !simpleView ? (
+          {sceneShown ? (
             <DistrictScene
               stage={stage}
               savedViewpoint={journey.savedViewpoint}
@@ -215,22 +255,10 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
               onSelect={selectBuilding}
               motion={motion}
               onSimpleView={switchToSimpleView}
-            />
-          ) : null}
-
-          <section
-            aria-labelledby="arrival-heading"
-            className="px-4 pt-16 pb-16 md:px-10 md:pt-24 md:pb-24">
-            <p className="type-eyebrow text-ink-muted">Architecture studio</p>
-            <h1 id="arrival-heading" className="mt-4 max-w-[18ch] type-display-xl text-balance">
-              Imagined homes for a district above the clouds
-            </h1>
-            <p className="mt-6 max-w-[56ch] text-pretty">
-              Habitta is an architecture studio showing imagined residential concepts. Every
-              building here, and the home featured in each, is a proposal for one invented
-              district, not a real development or listing.
-            </p>
-          </section>
+              headerHeight={headerHeight}>
+              {arrival}
+            </DistrictScene>
+          ) : arrival}
 
           {overviewConcept ? (
             <BuildingOverview

@@ -67,16 +67,18 @@ function DistrictModel({ labels, onReady, ...props }: SceneProps & {
 
   useFrame(({ camera, size }) => {
     if (props.stage.name === "residence") return;
+    const { top, right, bottom, left } = props.clearance;
     for (const { slug, anchor } of bindings) {
       const label = labels.current[slug];
       if (!label) continue;
       anchor.getWorldPosition(projected).project(camera);
       const x = (projected.x + 1) * size.width / 2;
       const y = (1 - projected.y) * size.height / 2;
-      // Offscreen anchors must not leave invisible controls in the tab order.
+      // Anchors offscreen or under the page's own layers must not leave
+      // hidden controls in the tab order.
       const visible = projected.z > -1 && projected.z < 1 &&
-        x >= label.offsetWidth / 2 && x <= size.width - label.offsetWidth / 2 &&
-        y >= label.offsetHeight && y <= size.height;
+        x >= left + label.offsetWidth / 2 && x <= size.width - right - label.offsetWidth / 2 &&
+        y >= top + label.offsetHeight && y <= size.height - bottom;
       label.style.setProperty("visibility", visible ? "visible" : "hidden");
       label.style.setProperty("transform", `translate(-50%, -100%) translate(${x}px, ${y}px)`);
     }
