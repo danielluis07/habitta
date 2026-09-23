@@ -180,6 +180,7 @@ describe("arrival", () => {
       screen.getByText(/architecture studio showing imagined residential concepts/),
     ).toBeInTheDocument();
     expect(screen.getByText(/not a real development or listing/)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/above the clouds/i);
   });
 
   test("starts with the building index closed", async () => {
