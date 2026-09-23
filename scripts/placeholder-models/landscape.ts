@@ -162,21 +162,34 @@ type Section = [offset: number, height: number | null][];
 
 /**
  * A lane or path swept along a polyline: its cross-section repeats at
- * stations `step` metres apart, each edge painted, and the section's outer
- * edges reach down into the ground wherever it runs above it.
+ * stations `step` metres apart (or only at the polyline's own points, for an
+ * infinite step) and at every corner, each edge painted, and the section's
+ * outer edges reach down into the ground wherever it runs above it.
  */
 function sweep(geometry: Geometry, points: vec3[], section: (distance: number) => Section, paints: vec3[], ground: (x: number, z: number) => number, step: number, breaks: number[] = []) {
   const lengths = [0];
   for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][2] - points[i - 1][2]));
   const total = lengths.at(-1)!;
-  const stops = [...new Set([...Array.from({ length: Math.ceil(total / step) + 1 }, (_, i) => Math.min(i * step, total)), ...breaks.filter((b) => b > 0 && b < total)])].sort((a, b) => a - b);
+  const direction = (k: number) => normalize([points[k + 1][0] - points[k][0], 0, points[k + 1][2] - points[k][2]]);
+  // A station on every corner, where the section is mitred. Stations just
+  // short of a corner are dropped: squared to their own segment, their inner
+  // edge would reach past the mitre and fold the surface back over itself.
+  const corners = lengths.slice(1, -1);
+  const halfWidth = Math.max(...section(0).map(([offset]) => Math.abs(offset)));
+  const reach = corners.map((_, k) => {
+    const [before, after] = [direction(k), direction(k + 1)];
+    const turn = Math.acos(Math.min(Math.max(before[0] * after[0] + before[2] * after[2], -1), 1));
+    return halfWidth * Math.tan(Math.min(turn, 2) / 2) + 0.05;
+  });
+  const steps = [0, total, ...Array.from({ length: Number.isFinite(step) ? Math.ceil(total / step) : 0 }, (_, i) => i * step)]
+    .filter((distance) => distance === 0 || distance === total || corners.every((corner, k) => Math.abs(distance - corner) >= reach[k]));
+  const stops = [...new Set([...steps, ...corners, ...breaks.filter((b) => b > 0 && b < total)])].sort((a, b) => a - b);
   const stations = stops.map((distance) => {
     const i = Math.min(Math.max(lengths.findLastIndex((value) => value <= distance), 0), points.length - 2);
     const t = (distance - lengths[i]) / (lengths[i + 1] - lengths[i]);
     const [a, b] = [points[i], points[i + 1]];
     const center: vec3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     // Mitred at the polyline's corners, so the width holds through bends.
-    const direction = (k: number) => normalize([points[k + 1][0] - points[k][0], 0, points[k + 1][2] - points[k][2]]);
     let forward = direction(i);
     let widen = 1;
     const corner = distance === lengths[i] && i > 0 ? i - 1 : distance === lengths[i + 1] && i + 1 < points.length - 1 ? i + 1 : -1;
@@ -303,8 +316,9 @@ export function district(document: Document, material: Materials): Node {
       return [px, surface(px, pz) + 0.25, pz];
     });
   }));
+  // The draped points are already 10 m apart on the ground; they are the stations.
   for (const points of onwardDraped) {
-    sweep(verges, points, () => [[-3.2, -0.45], [-2.6, 0], [2.6, 0], [3.2, -0.45]], [kerbTone.map((v) => v * 0.9) as vec3, surfaceTone, kerbTone.map((v) => v * 0.9) as vec3], surface, 10);
+    sweep(verges, points, () => [[-3.2, -0.45], [-2.6, 0], [2.6, 0], [3.2, -0.45]], [kerbTone.map((v) => v * 0.9) as vec3, surfaceTone, kerbTone.map((v) => v * 0.9) as vec3], surface, Infinity);
   }
   attach(document, root, "connecting_lane_and_paths", props.merge([pavingShaded, bake([verges], null)[0]]), material("lane"));
 

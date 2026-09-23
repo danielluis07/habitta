@@ -102,7 +102,7 @@ The richer-placeholder review ([#40](https://github.com/danielluis07/habitta/iss
 | Contour selected | 33 → 46 | 22 | 29 |
 | Grove selected | 33 → 48 | 26 | 38 |
 
-- Opening triangles went from 38,062 to 71,547 (mobile limit 75,000), and selections to at most 133,615 (limit 150,000). The opening GLB is 637 KB of its 2 MB.
+- Opening triangles went from 38,062 to 71,571 (mobile limit 75,000), and selections to at most 133,639 (limit 150,000). The opening GLB is 638 KB of its 2 MB.
 - Each building was captured with its detailed GLB held back and then loaded. Both detail levels showed the same massing, openings, finishes and planting; the detail added frames, sills, rail posts, tile courses, louvres and furniture.
 - Glass read as glass in every view, with a pale sky sheen at the head of each pane. Contact shading showed at building bases, in reveals and loggias, and under trees.
 - With the camera still, the overview rendered 0 frames. No console errors or warnings.
