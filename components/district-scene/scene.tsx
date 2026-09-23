@@ -2,13 +2,14 @@
 
 import { Canvas, useFrame, useLoader, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { getConsoleFunction, NeutralToneMapping, setConsoleFunction, Vector3, type Object3D } from "three";
+import { getConsoleFunction, NeutralToneMapping, setConsoleFunction, TextureLoader, Vector3, type Object3D } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import WebGL from "three/addons/capabilities/WebGL.js";
 import { Atmosphere, cameraFar, type AtmosphereColors } from "@/components/district-scene/atmosphere";
 import { DistrictCamera } from "@/components/district-scene/camera";
 import { QualityEffects } from "@/components/district-scene/effects";
 import { useEnvironment } from "@/components/district-scene/environment";
+import { groundMaps, groundTextures, layerGround } from "@/components/district-scene/ground";
 import { SceneLoading, type SceneProps } from "@/components/district-scene";
 import { bindBuilding, configureLoader, shade, useDetailedBuilding } from "@/components/district-scene/models";
 import {
@@ -61,6 +62,10 @@ function DistrictModel({ labels, onReady, onMotionFrame, environmentUpgrade, ...
 }) {
   const gltf = useLoader(GLTFLoader, "/models/district-low.glb", configureLoader);
   const environment = useEnvironment(environmentUpgrade);
+  // The ground's maps open with the district, and like it, a failure opens simple view.
+  const groundTextureList = useLoader(TextureLoader, groundTextures as string[]);
+  const anisotropy = useThree((state) => state.gl.capabilities.getMaxAnisotropy());
+  const ground = useMemo(() => groundMaps(groundTextureList, anisotropy), [anisotropy, groundTextureList]);
   // useLoader owns the cached resources; each mounted scene owns its graph.
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const lowDetail = useMemo(() => collection.map(({ slug }) => bindBuilding(slug, model)), [model]);
@@ -73,6 +78,12 @@ function DistrictModel({ labels, onReady, onMotionFrame, environmentUpgrade, ...
   );
   const projected = useMemo(() => new Vector3(), []);
   const ready = useRef(false);
+
+  // The ground, lanes and benches take their textured layers before the first frame.
+  useLayoutEffect(() => {
+    layerGround(model, ground);
+    invalidate();
+  }, [ground, invalidate, model]);
 
   // Before a model's first frame, and again when a better map arrives.
   useLayoutEffect(() => {

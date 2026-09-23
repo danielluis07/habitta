@@ -1,5 +1,6 @@
 import type { Document, Material, Node } from "@gltf-transform/core";
 import { EXTMeshGPUInstancing } from "@gltf-transform/extensions";
+import { layerAttribute } from "@/components/district-scene/ground";
 import type { MeshData, vec3 } from "@/scripts/placeholder-models/geometry";
 
 // Design tokens are sRGB; glTF material factors and vertex colours are linear.
@@ -75,6 +76,11 @@ function primitive(document: Document, mesh: MeshData, surface: Material) {
   const indices = document.createAccessor().setType("SCALAR").setArray(new Uint32Array(mesh.indices)).setBuffer(buffer);
   const result = document.createPrimitive().setAttribute("POSITION", floats(document, "VEC3", mesh.positions))
     .setAttribute("NORMAL", floats(document, "VEC3", mesh.normals)).setIndices(indices).setMaterial(surface);
+  if (mesh.layers) {
+    // The scene's ground-layer weights, as normalized bytes, like the colours.
+    const weights = Uint8Array.from(mesh.layers, (value) => Math.round(Math.min(Math.max(value, 0), 1) * 255));
+    result.setAttribute(layerAttribute.gltf, document.createAccessor().setType("VEC4").setArray(weights).setNormalized(true).setBuffer(buffer));
+  }
   if (!mesh.colors.length) return result;
   // Colours travel as normalized bytes, a quarter of the size of floats. The
   // contact shade's fourth component is its alpha; everything else is opaque.

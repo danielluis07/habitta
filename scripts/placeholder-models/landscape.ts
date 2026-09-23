@@ -1,7 +1,7 @@
 import type { Document, Node } from "@gltf-transform/core";
 import { collection } from "@/lib/collection";
 import { buildingOccluders, placeholder, plots } from "@/scripts/placeholder-models/buildings";
-import { bake, Geometry, mix, normalize, type MeshData, type vec3 } from "@/scripts/placeholder-models/geometry";
+import { bake, Geometry, mix, normalize, type Layers, type MeshData, type vec3 } from "@/scripts/placeholder-models/geometry";
 import { attach, instanced, linear, type Instance, type Materials } from "@/scripts/placeholder-models/gltf";
 import { hash, noise, seeded, smoothstep } from "@/scripts/placeholder-models/noise";
 import * as props from "@/scripts/placeholder-models/props";
@@ -105,7 +105,7 @@ function terrain(routes: Route[]) {
   const xs = gridLines(120, 3200);
   const zs = gridLines(120, 3200);
   const heights = zs.map((z) => xs.map((x) => groundHeight(x, z)));
-  const ground: MeshData = { positions: [], normals: [], colors: [], indices: [] };
+  const ground: MeshData = { positions: [], normals: [], colors: [], indices: [], layers: [] };
   const [grass, dry, scrubby, rock] = ["#A5AE95", "#B4B094", "#949D80", "#B8B1A3"].map(linear);
   const slope = (lines: number[], values: number[], i: number) => {
     const [a, b] = [Math.max(i - 1, 0), Math.min(i + 1, lines.length - 1)];
@@ -122,15 +122,22 @@ function terrain(routes: Route[]) {
     ground.normals.push(...normal.map((value) => value / length));
     // Dry grass and scrub in patches at two scales, bare rock where the
     // ground is steep or high, and dust along the lanes.
-    let color = mix(grass, dry, smoothstep(0.42, 0.6, noise(x, z, 110, 5)));
-    color = mix(color, dry, 0.85 * smoothstep(0.52, 0.68, noise(x, z, 34, 13)));
+    const [dryPatches, dryFlecks] = [smoothstep(0.42, 0.6, noise(x, z, 110, 5)), 0.85 * smoothstep(0.52, 0.68, noise(x, z, 34, 13))];
+    let color = mix(grass, dry, dryPatches);
+    color = mix(color, dry, dryFlecks);
     color = mix(color, scrubby, smoothstep(0.55, 0.7, noise(x, z, 70, 9)));
     color = mix(color, scrubby, 0.85 * smoothstep(0.56, 0.7, noise(x, z, 22, 19)));
-    color = mix(color, rock, Math.max(smoothstep(0.93, 0.8, 1 / length), smoothstep(160, 260, y), 0.55 * smoothstep(0.66, 0.8, noise(x, z, 48, 29))));
-    if (Math.abs(x) < 700 && Math.abs(z) < 700) color = mix(color, rock, 0.35 * (1 - smoothstep(1, 9, nearRoute(x, z))));
+    const rocky = Math.max(smoothstep(0.93, 0.8, 1 / length), smoothstep(160, 260, y), 0.55 * smoothstep(0.66, 0.8, noise(x, z, 48, 29)));
+    color = mix(color, rock, rocky);
+    const dust = Math.abs(x) < 700 && Math.abs(z) < 700 ? 0.35 * (1 - smoothstep(1, 9, nearRoute(x, z))) : 0;
+    color = mix(color, rock, dust);
     // Ground seen in the distance is not perfectly even either.
     const shade = 0.94 + 0.12 * hash(Math.round(x), Math.round(z), 3);
     ground.colors.push(...color.map((value) => value * shade));
+    // The textured layers follow the same patches: bare earth shows through
+    // the dry grass and along the lanes, rock where the colour turns to rock.
+    const earth = Math.max(1 - (1 - 0.55 * dryPatches) * (1 - 0.65 * dryFlecks), 1.6 * dust);
+    ground.layers!.push((1 - rocky) * (1 - earth), (1 - rocky) * earth, rocky, 0);
   }));
   for (let j = 0; j < zs.length - 1; j++) {
     for (let i = 0; i < xs.length - 1; i++) {
@@ -163,10 +170,11 @@ type Section = [offset: number, height: number | null][];
 /**
  * A lane or path swept along a polyline: its cross-section repeats at
  * stations `step` metres apart (or only at the polyline's own points, for an
- * infinite step) and at every corner, each edge painted, and the section's
- * outer edges reach down into the ground wherever it runs above it.
+ * infinite step) and at every corner, each edge painted and surfaced with
+ * its ground layers, and the section's outer edges reach down into the
+ * ground wherever it runs above it.
  */
-function sweep(geometry: Geometry, points: vec3[], section: (distance: number) => Section, paints: vec3[], ground: (x: number, z: number) => number, step: number, breaks: number[] = []) {
+function sweep(geometry: Geometry, points: vec3[], section: (distance: number) => Section, paints: vec3[], surfaces: (Layers | undefined)[], ground: (x: number, z: number) => number, step: number, breaks: number[] = []) {
   const lengths = [0];
   for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][2] - points[i - 1][2]));
   const total = lengths.at(-1)!;
@@ -214,7 +222,7 @@ function sweep(geometry: Geometry, points: vec3[], section: (distance: number) =
       // The section runs left to right, so each edge faces a quarter turn from its own direction.
       const [dr, dy] = [(b[0] - a[0]) * right[0] + (b[2] - a[2]) * right[2], b[1] - a[1]];
       const toward: vec3 = [right[0] * -dy, dr, right[2] * -dy];
-      geometry.with(paints[k], () => geometry.faceToward(toward, a, b, c, d));
+      geometry.on(surfaces[k], () => geometry.with(paints[k], () => geometry.faceToward(toward, a, b, c, d)));
     }
   }
 }
@@ -246,8 +254,10 @@ export function district(document: Document, material: Materials): Node {
     const occluders = buildingOccluders(concept);
     const bench = new Geometry([...occluders.solids]);
     const edge = (x: number, z: number) => Math.min(w / 2 - Math.abs(x), d / 2 - Math.abs(z));
-    bench.with((point) => mix(garden, gravel, smoothstep(1.2, 3.2, edge(point[0], point[2]) + 1.4 * (noise(point[0] + origin[0], point[2], 6, 61) - 0.5))), () =>
-      bench.faceToward([0, 1, 0], [-w / 2, 0, -d / 2], [w / 2, 0, -d / 2], [w / 2, 0, d / 2], [-w / 2, 0, d / 2]));
+    const graveled = (point: vec3) => smoothstep(1.2, 3.2, edge(point[0], point[2]) + 1.4 * (noise(point[0] + origin[0], point[2], 6, 61) - 0.5));
+    bench.on((point) => [1 - graveled(point), 0, 0, graveled(point)], () =>
+      bench.with((point) => mix(garden, gravel, graveled(point)), () =>
+        bench.faceToward([0, 1, 0], [-w / 2, 0, -d / 2], [w / 2, 0, -d / 2], [w / 2, 0, d / 2], [-w / 2, 0, d / 2])));
     const low = Math.min(...[-w / 2, w / 2].flatMap((x) => [-d / 2, d / 2].map((z) => surface(x + origin[0], z + origin[2])))) - origin[1] - 0.6;
     bench.with((point) => wallStone.map((value) => value * (0.84 + 0.2 * noise(point[0] + point[2] + origin[0], point[1] * 1.8, 1.6, 71))) as vec3, () => {
       for (const [a, b, out] of [
@@ -274,11 +284,15 @@ export function district(document: Document, material: Materials): Node {
   }
   attach(document, root, "separate_plot_benches", props.merge(benches), material("plot"));
 
-  // The lane: a paved carriageway between kerbs, dropped where each path
-  // meets it. Paths ramp down from their benches between low stone edges.
+  // The lane: compacted gravel between limestone kerbs, each with a gutter
+  // of darker setts along it, so the kerbs read as a pale line over a dark
+  // one from the overview. The kerbs drop where each path meets the lane.
+  // Paths ramp down from their benches, gravel between low stone edges.
   // Beyond the district the lane runs on, draped on the ground, with verges.
   const paving = new Geometry();
-  const [surfaceTone, kerbTone, stoneSide] = [linear("#CFC7B6"), linear("#DED8CB"), linear("#B7AD99")];
+  const [surfaceTone, kerbTone, stoneSide] = [linear("#CFC7B6"), linear("#E4DCCB"), linear("#B7AD99")];
+  const gutterTone = linear("#B8B1A3").map((value) => value * 0.78) as vec3;
+  const [gravelLayer, stoneLayer] = [[0, 0, 0, 1], [0, 0, 1, 0]] satisfies Layers[];
   const laneLengths = [0];
   for (let i = 1; i < lane.length; i++) laneLengths.push(laneLengths[i - 1] + Math.hypot(lane[i][0] - lane[i - 1][0], lane[i][2] - lane[i - 1][2]));
   const junctions = plotPaths.map((path) => {
@@ -297,13 +311,15 @@ export function district(document: Document, material: Materials): Node {
   });
   const kerb = (distance: number, side: number) => junctions.some((junction) => junction.side === side && Math.abs(distance - junction.along) < 2.4) ? 0 : 0.15;
   sweep(paving, lane, (distance) => [
-    [-3.35, null], [-3.35, kerb(distance, -1)], [-3, kerb(distance, -1)], [-3, 0], [-2.7, 0],
-    [2.7, 0], [3, 0], [3, kerb(distance, 1)], [3.35, kerb(distance, 1)], [3.35, null],
-  ], [stoneSide, kerbTone, kerbTone, surfaceTone, surfaceTone, surfaceTone, kerbTone, kerbTone, stoneSide], surface, 3,
+    [-3.35, null], [-3.35, kerb(distance, -1)], [-2.9, kerb(distance, -1)], [-2.9, 0], [-2.55, 0],
+    [2.55, 0], [2.9, 0], [2.9, kerb(distance, 1)], [3.35, kerb(distance, 1)], [3.35, null],
+  ], [stoneSide, kerbTone, kerbTone, gutterTone, surfaceTone, gutterTone, kerbTone, kerbTone, stoneSide],
+  [undefined, stoneLayer, stoneLayer, stoneLayer, gravelLayer, stoneLayer, stoneLayer, stoneLayer, undefined], surface, 3,
   junctions.flatMap(({ along }) => [along - 2.4, along + 2.4]));
   for (const path of plotPaths) {
     sweep(paving, path, () => [[-1.4, null], [-1.4, 0.1], [-1.2, 0.1], [-1.2, 0], [1.2, 0], [1.2, 0.1], [1.4, 0.1], [1.4, null]],
-      [stoneSide, kerbTone, kerbTone, surfaceTone, kerbTone, kerbTone, stoneSide], surface, 3);
+      [stoneSide, kerbTone, kerbTone, surfaceTone, kerbTone, kerbTone, stoneSide],
+      [undefined, stoneLayer, stoneLayer, gravelLayer, stoneLayer, stoneLayer, undefined], surface, 3);
   }
   const [pavingShaded] = bake([paving], { rays: 16, reach: 0.8, strength: 0.7 });
   const verges = new Geometry();
@@ -318,7 +334,9 @@ export function district(document: Document, material: Materials): Node {
   }));
   // The draped points are already 10 m apart on the ground; they are the stations.
   for (const points of onwardDraped) {
-    sweep(verges, points, () => [[-3.2, -0.45], [-2.6, 0], [2.6, 0], [3.2, -0.45]], [kerbTone.map((v) => v * 0.9) as vec3, surfaceTone, kerbTone.map((v) => v * 0.9) as vec3], surface, Infinity);
+    const verge: Layers = [0, 0.5, 0.5, 0];
+    sweep(verges, points, () => [[-3.2, -0.45], [-2.6, 0], [2.6, 0], [3.2, -0.45]], [kerbTone.map((v) => v * 0.9) as vec3, surfaceTone, kerbTone.map((v) => v * 0.9) as vec3],
+      [verge, gravelLayer, verge], surface, Infinity);
   }
   attach(document, root, "connecting_lane_and_paths", props.merge([pavingShaded, bake([verges], null)[0]]), material("lane"));
 

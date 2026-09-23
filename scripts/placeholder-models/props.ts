@@ -214,6 +214,11 @@ export function merge(meshes: MeshData[]): MeshData {
     result.positions.push(...mesh.positions);
     result.normals.push(...mesh.normals);
     result.colors.push(...mesh.colors);
+    if (mesh.layers || result.layers) {
+      // A part without layers takes none; the first part with them fills in those before it.
+      result.layers ??= Array.from({ length: offset * 4 }, () => 0);
+      result.layers.push(...(mesh.layers ?? Array.from({ length: mesh.positions.length / 3 * 4 }, () => 0)));
+    }
     result.indices.push(...mesh.indices.map((index) => index + offset));
   }
   return result;

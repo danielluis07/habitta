@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { type Document, type Node, Primitive } from "@gltf-transform/core";
 import { EXTMeshGPUInstancing, type InstancedMesh } from "@gltf-transform/extensions";
+import sharp from "sharp";
+import { groundTextures } from "@/components/district-scene/ground";
 import { desktopPack, environmentMaps } from "@/components/district-scene/quality";
 import { collection } from "@/lib/collection";
 import { modelIO } from "@/scripts/model-io";
@@ -19,7 +21,7 @@ afterEach(async () => {
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "habitta-models-"));
   temporaryDirectories.push(directory);
-  for (const folder of ["models", "environments"]) {
+  for (const folder of ["models", "environments", "textures"]) {
     await cp(join(publicDirectory, folder), join(directory, folder), { recursive: true });
   }
   return directory;
@@ -63,10 +65,12 @@ test("every committed runtime GLB passes Khronos validation, scene bindings and 
   }
 });
 
-test("the opening transfer is the district and the base environment map, on every tier", async () => {
+test("the opening transfer is the district, the base environment map and the ground textures, on every tier", async () => {
   const report = await validateModels();
-  const bytes = (url: string) => [...report.assets, ...report.environments].find((asset) => asset.url === url)!.bytes;
-  expect(report.transfer.opening).toBe(bytes("/models/district-low.glb") + bytes(environmentMaps.base));
+  const bytes = (url: string) => [...report.assets, ...report.environments, ...report.textures].find((asset) => asset.url === url)!.bytes;
+  expect(report.textures.map(({ url }) => url)).toEqual([...groundTextures]);
+  expect(report.transfer.opening).toBe(bytes("/models/district-low.glb") + bytes(environmentMaps.base) +
+    groundTextures.reduce((sum, url) => sum + bytes(url), 0));
   expect(report.transfer.opening).toBeLessThanOrEqual(2_000_000);
   // The upgrade is fetched later, by the high tier alone.
   expect(desktopPack).toEqual([environmentMaps.high]);
@@ -88,14 +92,16 @@ describe("environment maps", () => {
 
   test("the base map counts toward the opening budget", async () => {
     const directory = await fixture();
-    // The district alone stays under 2 MB; with the base map, it doesn't.
-    const district = (await validateModels(directory)).assets.find(({ url }) => url === "/models/district-low.glb")!;
+    // The district and the ground textures stay under 2 MB; with the base map, they don't.
+    const before = await validateModels(directory);
+    const district = before.assets.find(({ url }) => url === "/models/district-low.glb")!;
+    const textures = before.textures.reduce((sum, { bytes }) => sum + bytes, 0);
     await edit(directory, "district-low.glb", (document) => {
-      document.getRoot().setExtras({ oversizedMetadata: "x".repeat(2_000_000 - district.bytes - 40_000) });
+      document.getRoot().setExtras({ oversizedMetadata: "x".repeat(2_000_000 - district.bytes - textures - 40_000) });
     });
     const report = await validateModels(directory);
-    expect(report.assets.find(({ url }) => url === "/models/district-low.glb")!.bytes).toBeLessThan(2_000_000);
-    expect(report.errors.join("\n")).toContain("Opening transfer (district GLB and base environment map)");
+    expect(report.assets.find(({ url }) => url === "/models/district-low.glb")!.bytes + textures).toBeLessThan(2_000_000);
+    expect(report.errors.join("\n")).toContain("Opening transfer (district GLB, base environment map and ground textures)");
   });
 
   test("an oversized desktop pack", async () => {
@@ -117,6 +123,34 @@ describe("environment maps", () => {
     const errors = (await validateModels(directory)).errors.join("\n");
     expect(errors).toContain(`${environmentMaps.base}: missing environment map.`);
     expect(errors).toContain(`${environmentMaps.high}: Environment maps must be Radiance HDR`);
+  });
+});
+
+describe("ground textures", () => {
+  test("they count toward the opening budget", async () => {
+    const directory = await fixture();
+    const before = await validateModels(directory);
+    // Growing one map past what's left of the 2 MB fails the opening transfer.
+    const path = join(directory, groundTextures[0].slice(1));
+    const map = await readFile(path);
+    const grown = new Uint8Array(map.byteLength + 2_000_001 - before.transfer.opening);
+    grown.set(map);
+    await writeFile(path, grown);
+    const report = await validateModels(directory);
+    expect(report.transfer.opening).toBe(2_000_001);
+    expect(report.errors.join("\n")).toContain("Opening transfer (district GLB, base environment map and ground textures): 2000001 bytes");
+  });
+
+  test("a missing, unreadable or oversized map", async () => {
+    const directory = await fixture();
+    const [missing, unreadable, oversized] = groundTextures;
+    await rm(join(directory, missing.slice(1)));
+    await writeFile(join(directory, unreadable.slice(1)), "not a JPEG");
+    await writeFile(join(directory, oversized.slice(1)), await sharp({ create: { width: 2048, height: 2048, channels: 3, background: "#A5AE95" } }).jpeg().toBuffer());
+    const errors = (await validateModels(directory)).errors.join("\n");
+    expect(errors).toContain(`${missing}: missing ground texture.`);
+    expect(errors).toContain(`${unreadable}: Ground textures must be JPEG files.`);
+    expect(errors).toContain(`${oversized}: Ground textures are square, a power of two, 256 to 1,024 px; found 2048 × 2048.`);
   });
 });
 

@@ -8,14 +8,21 @@ export type { vec3 };
  */
 export type Paint = vec3 | ((point: vec3, normal: vec3) => vec3);
 
+/**
+ * Weights of the scene's ground layers (grass, earth, rock, gravel), which
+ * the scene blends over the vertex colour. See components/district-scene/ground.ts.
+ */
+export type Layers = [grass: number, earth: number, rock: number, gravel: number];
+export type LayerPaint = Layers | ((point: vec3, normal: vec3) => Layers);
+
 /** `cell` overrides the bake's own cell size; Infinity keeps a face whole. */
-type Face = { points: vec3[]; normals?: vec3[]; paint: Paint; cell?: number };
+type Face = { points: vec3[]; normals?: vec3[]; paint: Paint; cell?: number; layers?: LayerPaint };
 
 /** An axis-aligned solid. Faces entirely inside one are hidden, so they are dropped. */
 export type Solid = { min: vec3; max: vec3 };
 
-/** Packed, indexed triangles ready for a glTF primitive. */
-export type MeshData = { positions: number[]; normals: number[]; colors: number[]; indices: number[] };
+/** Packed, indexed triangles ready for a glTF primitive; `layers` holds four ground-layer weights per vertex. */
+export type MeshData = { positions: number[]; normals: number[]; colors: number[]; indices: number[]; layers?: number[] };
 
 const add = (a: vec3, b: vec3): vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a: vec3, b: vec3): vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -48,6 +55,7 @@ export class Geometry {
   faces: Face[] = [];
   paint: Paint = [1, 1, 1];
   cell?: number;
+  layers?: LayerPaint;
 
   constructor(readonly solids: Solid[] = []) {}
 
@@ -59,9 +67,17 @@ export class Geometry {
     [this.paint, this.cell] = [previous, previousCell];
   }
 
+  /** Lays the ground layers on the faces drawn during `draw`. */
+  on(layers: LayerPaint | undefined, draw: () => void) {
+    const previous = this.layers;
+    this.layers = layers;
+    draw();
+    this.layers = previous;
+  }
+
   /** A flat convex face; its winding sets the normal. */
   face(...points: vec3[]) {
-    this.faces.push({ points, paint: this.paint, cell: this.cell });
+    this.faces.push({ points, paint: this.paint, cell: this.cell, layers: this.layers });
   }
 
   /** A face turned to look toward `toward`, whatever order its points arrive in. */
@@ -71,7 +87,7 @@ export class Geometry {
 
   /** A face with its own vertex normals, for soft organic shapes. */
   smooth(points: vec3[], normals: vec3[]) {
-    this.faces.push({ points, normals, paint: this.paint, cell: Infinity });
+    this.faces.push({ points, normals, paint: this.paint, cell: Infinity, layers: this.layers });
   }
 
   quad(a: vec3, b: vec3, c: vec3, d: vec3) {
@@ -381,6 +397,7 @@ type Patch = {
   points: vec3[];
   normals: vec3[];
   paint: Paint;
+  layers?: LayerPaint;
   /** Columns and rows of a quad's grid; 1 × 1 for a polygon. */
   nu: number;
   nv: number;
@@ -407,10 +424,10 @@ function refine(face: Face, cell: number, solids: SolidIndex): Patch {
       const at = j * (nu + 1) + i;
       hidden.push(solids.covers([grid[at], grid[at + 1], grid[at + nu + 2], grid[at + nu + 1]], flat));
     }
-    return { points: grid, normals: grid.map(() => flat), paint: face.paint, nu, nv, polygon: false, hidden, center: centroid(points) };
+    return { points: grid, normals: grid.map(() => flat), paint: face.paint, layers: face.layers, nu, nv, polygon: false, hidden, center: centroid(points) };
   }
   return {
-    points, normals: face.normals ?? points.map(() => flat), paint: face.paint, nu: 1, nv: 1, polygon: true,
+    points, normals: face.normals ?? points.map(() => flat), paint: face.paint, layers: face.layers, nu: 1, nv: 1, polygon: true,
     hidden: [!face.normals && solids.covers(points, flat)], center: centroid(points),
   };
 }
@@ -494,6 +511,8 @@ export function bake(geometries: Geometry[], occlusion: Occlusion | null, occlud
   return sets.map((set, g) => {
     const shaded = !unshaded.has(geometries[g]);
     const mesh: MeshData = { positions: [], normals: [], colors: [], indices: [] };
+    // Faces without layers take none, so the scene leaves their vertex colour alone.
+    if (set.some((patch) => patch.layers)) mesh.layers = [];
     for (const patch of set) {
       const { nu, nv, hidden, points, normals } = patch;
       const emit = (index: number, ao: number) => {
@@ -502,6 +521,7 @@ export function bake(geometries: Geometry[], occlusion: Occlusion | null, occlud
         mesh.positions.push(...point);
         mesh.normals.push(...normal);
         mesh.colors.push(...paint.map((value) => Math.min(Math.max(value * ao, 0), 1)));
+        if (mesh.layers) mesh.layers.push(...(typeof patch.layers === "function" ? patch.layers(point, normal) : patch.layers ?? [0, 0, 0, 0]));
       };
       if (patch.polygon) {
         if (hidden[0]) continue;
