@@ -46,8 +46,8 @@ Each concept requires:
   and quiet-room roles;
 - a material schedule with names, locations, color/value, roughness, texture,
   and permitted variation;
-- approved camera framing, lighting direction, season/daylight, cloud
-  treatment, and aspect ratio for each role.
+- approved camera framing, lighting direction, season/daylight, clear-valley
+  atmosphere, and aspect ratio for each role.
 
 The same design facts must be represented in both the runtime GLBs and the
 image references. glTF is the runtime interchange format, not a replacement
@@ -61,7 +61,7 @@ format, and the official validator is the export gate:
 ## Image order and acceptance gates
 
 The building-context image establishes silhouette, plot, district position,
-terrain, cloud atmosphere, and daylight. The living image establishes the
+terrain, clear-valley atmosphere, and daylight. The living image establishes the
 featured residence's primary spatial and material reading. The outdoor image
 must preserve the residence's indoor/outdoor connection and the building's
 exterior facts. The quiet-room image checks the residence arrangement at a
@@ -77,8 +77,8 @@ For every image, reject or regenerate when any of these fail:
   source references.
 - **Material:** named materials occur in the approved locations with plausible
   color, texture, roughness, and construction logic.
-- **Place:** the plot, slope, district position, terrain, horizon, cloud deck,
-  and daylight agree with the world rules.
+- **Place:** the plot, slope, district position, terrain, clear lake valley,
+  distant haze, and daylight agree with the world rules.
 - **Role:** the frame communicates its assigned living, outdoor, quiet-room,
   material-study, or context purpose without borrowing another concept's image.
 - **Continuity:** recurring details, camera language, scale cues, and visual

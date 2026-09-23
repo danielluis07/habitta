@@ -223,7 +223,7 @@ export function Exploration({ initialStage = districtStage }: ExplorationProps) 
             className="px-4 pt-16 pb-16 md:px-10 md:pt-24 md:pb-24">
             <p className="type-eyebrow text-ink-muted">Architecture studio</p>
             <h1 id="arrival-heading" className="mt-4 max-w-[18ch] type-display-xl text-balance">
-              Imagined homes for a district above the clouds
+              Imagined homes in a highland district
             </h1>
             <p className="mt-6 max-w-[56ch] text-pretty">
               Habitta is an architecture studio showing imagined residential concepts. Every
