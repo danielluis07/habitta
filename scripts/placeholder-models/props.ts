@@ -2,10 +2,11 @@ import { bake, Geometry, mix, normalize, type MeshData, type Paint, type vec3 } 
 import { linear } from "@/scripts/placeholder-models/gltf";
 import { seeded } from "@/scripts/placeholder-models/noise";
 
-// Generated props for the placeholder highland. No third-party assets: each
-// prop is built here, painted with vertex colours and baked against the
-// ground it stands on. Every prop is a single mesh, drawn once per part
-// through GPU instancing however often it repeats.
+// Generated props for the placeholder highland and its buildings: walls,
+// lights, planting and contact shades. Each is built here, painted with
+// vertex colours and baked against the ground it stands on. Every prop is a
+// single mesh, drawn once per part through GPU instancing however often it
+// repeats. The vegetation and rocks are in vegetation.ts and rock.ts.
 
 const phi = (1 + Math.sqrt(5)) / 2;
 const icosahedron: vec3[] = [
@@ -56,91 +57,14 @@ export function limb(geometry: Geometry, from: vec3, to: vec3, radii: [number, n
 }
 
 // Props are baked against the ground they stand on: a plane at y = 0.
-const groundPlane = [-40, 0, -40, -40, 0, 40, 40, 0, 40, -40, 0, -40, 40, 0, 40, 40, 0, -40];
-const propShading = { rays: 32, reach: 2.2, strength: 0.75 };
+export const groundPlane = [-40, 0, -40, -40, 0, 40, 40, 0, 40, -40, 0, -40, 40, 0, 40, 40, 0, -40];
+export const propShading = { rays: 32, reach: 2.2, strength: 0.75 };
 
 /** Foliage coloured by how much sky it faces: lighter above, darker beneath. */
 const foliage = (below: string, above: string): Paint => {
   const [low, high] = [linear(below), linear(above)];
   return (_, normal) => mix(low, high, 0.5 + 0.5 * normal[1]);
 };
-
-/**
- * An olive: a short, split trunk under a broad, low, silvery canopy of
- * overlapping clumps. Far olives are a single clump.
- */
-export function olive(near: boolean): MeshData {
-  const bark = new Geometry();
-  const leaves = new Geometry();
-  bark.paint = linear("#6F6252");
-  leaves.paint = foliage("#687460", "#AEB6A0");
-  if (near) {
-    limb(bark, [0, -0.3, 0], [0.12, 0.9, 0.05], [0.26, 0.19], 5);
-    limb(bark, [0.1, 0.8, 0.04], [-0.6, 1.9, 0.3], [0.15, 0.09], 4);
-    limb(bark, [0.14, 0.8, 0.06], [0.75, 2.0, -0.3], [0.14, 0.08], 4);
-    blob(leaves, [-0.75, 2.4, 0.4], [1.8, 1.05, 1.6], 1);
-    blob(leaves, [0.95, 2.5, -0.35], [1.85, 1.1, 1.65], 2);
-    blob(leaves, [0.1, 3.05, 0.05], [1.55, 0.95, 1.45], 3);
-  } else {
-    limb(bark, [0, -0.3, 0], [0.1, 1.4, 0], [0.24, 0.16], 4);
-    blob(leaves, [0.1, 2.6, 0], [2.3, 1.3, 2.1], 4, { coarse: true, jitter: 0.1 });
-  }
-  return merge(bake([bark, leaves], propShading, groundPlane));
-}
-
-/** A cypress: a tall, dark flame. */
-export function cypress(): MeshData {
-  const geometry = new Geometry();
-  const rings: [number, number][] = [[-0.3, 0.5], [3, 1.0], [7.4, 0.62]];
-  const sides = 5;
-  const apex: vec3 = [0, 10.6, 0];
-  const [dark, light] = [linear("#4C5A45"), linear("#6B7A5D")];
-  const ring = rings.map(([y, r], k) => Array.from({ length: sides }, (_, i) => {
-    const angle = (i + k * 0.5) / sides * Math.PI * 2;
-    return { point: [Math.cos(angle) * r, y, Math.sin(angle) * r] as vec3, normal: normalize([Math.cos(angle), 0.35, Math.sin(angle)]) };
-  }));
-  geometry.paint = (point) => mix(dark, light, Math.min(Math.max(point[1] / 10, 0), 1));
-  for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < sides; i++) {
-    const j = (i + 1) % sides;
-    const [a, b, c, d] = [ring[k][i], ring[k][j], ring[k + 1][j], ring[k + 1][i]];
-    geometry.smooth([a.point, d.point, c.point, b.point], [a.normal, d.normal, c.normal, b.normal]);
-  }
-  for (let i = 0; i < sides; i++) {
-    const [a, b] = [ring.at(-1)![i], ring.at(-1)![(i + 1) % sides]];
-    geometry.smooth([a.point, apex, b.point], [a.normal, [0, 1, 0], b.normal]);
-  }
-  return merge(bake([geometry], propShading, groundPlane));
-}
-
-/** A low, rounded mound of scrub: five-sided, soft, darker than the grass it grows in. */
-export function scrub(): MeshData {
-  const geometry = new Geometry();
-  geometry.paint = foliage("#56624A", "#7F8A67");
-  const sides = 5;
-  const ring = (y: number, radius: number, twist: number) => Array.from({ length: sides }, (_, i) => {
-    const angle = (i + twist) / sides * Math.PI * 2;
-    const r = radius * (0.85 + 0.3 * ((i * 3) % 5) / 4);
-    return { point: [Math.cos(angle) * r, y, -Math.sin(angle) * r] as vec3, normal: normalize([Math.cos(angle), 0.6 + y, -Math.sin(angle)]) };
-  });
-  const [base, shoulder] = [ring(-0.15, 1.05, 0), ring(0.45, 0.8, 0.5)];
-  const top: vec3 = [0, 0.78, 0];
-  for (let i = 0; i < sides; i++) {
-    const j = (i + 1) % sides;
-    geometry.smooth([base[i].point, base[j].point, shoulder[i].point], [base[i].normal, base[j].normal, shoulder[i].normal]);
-    geometry.smooth([base[j].point, shoulder[j].point, shoulder[i].point], [base[j].normal, shoulder[j].normal, shoulder[i].normal]);
-    geometry.smooth([shoulder[i].point, shoulder[j].point, top], [shoulder[i].normal, shoulder[j].normal, [0, 1, 0]]);
-  }
-  return merge(bake([geometry], propShading, groundPlane));
-}
-
-/** A grey limestone boulder, faceted, half sunk into the ground. */
-export function rock(): MeshData {
-  const geometry = new Geometry();
-  const [shadow, lit] = [linear("#8F887B"), linear("#BAB3A5")];
-  geometry.paint = (_, normal) => mix(shadow, lit, 0.5 + 0.5 * normal[1]);
-  blob(geometry, [0, 0.1, 0], [1.2, 0.8, 1.0], 13, { jitter: 0.28, soft: false });
-  return merge(bake([geometry], propShading, groundPlane));
-}
 
 /**
  * Five metres of dry-stone terrace wall, battered, buried 0.45 m so it
@@ -214,6 +138,10 @@ export function merge(meshes: MeshData[]): MeshData {
     result.positions.push(...mesh.positions);
     result.normals.push(...mesh.normals);
     result.colors.push(...mesh.colors);
+    if (mesh.uvs || result.uvs) {
+      result.uvs ??= Array.from({ length: offset * 2 }, () => 0);
+      result.uvs.push(...(mesh.uvs ?? Array.from({ length: mesh.positions.length / 3 * 2 }, () => 0)));
+    }
     if (mesh.layers || result.layers) {
       // A part without layers takes none; the first part with them fills in those before it.
       result.layers ??= Array.from({ length: offset * 4 }, () => 0);

@@ -14,6 +14,8 @@ const originalFetch = globalThis.fetch;
 function serveModels({ failing }: { failing?: string } = {}) {
   globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input);
+    // A model's embedded textures, read in memory, are no requests.
+    if (path.startsWith("blob:")) return originalFetch(input, init);
     requests.push(path);
     init?.signal?.throwIfAborted();
     if (path === failing) return new Response(null, { status: 404 });

@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import sharp from "sharp";
 import { groundLayers, type GroundLayer } from "@/components/district-scene/ground";
+import { download } from "@/scripts/cc0";
 import { linear } from "@/scripts/placeholder-models/gltf";
 
 type Source = {
@@ -50,22 +50,6 @@ const tint: Record<GroundLayer["name"], { contrast: number; chroma: number; flat
   rock: { contrast: 0.9, chroma: 0.3, flatten: 0.55 },
   gravel: { contrast: 1.4, chroma: 0.3, flatten: 0 },
 };
-
-const cache = resolve(import.meta.dir, "../node_modules/.cache/habitta-ground-textures");
-
-async function download({ url, md5 }: { url: string; md5: string }) {
-  const path = resolve(cache, url.split("/").at(-1)!);
-  let bytes = await readFile(path).catch(() => null);
-  if (!bytes) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${response.status} fetching ${url}`);
-    bytes = Buffer.from(await response.arrayBuffer());
-    await writeFile(path, bytes);
-  }
-  const digest = createHash("md5").update(bytes).digest("hex");
-  if (digest !== md5) throw new Error(`${url} changed upstream (MD5 ${digest}, expected ${md5}); review it before updating the record.`);
-  return bytes;
-}
 
 const toLinear = (value: number) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 const toSRGB = (value: number) => Math.round(255 * Math.min(Math.max(value <= 0.0031308 ? value * 12.92 : 1.055 * value ** (1 / 2.4) - 0.055, 0), 1));
@@ -157,7 +141,6 @@ async function surfaceMap(normalBytes: Buffer, roughnessBytes: Buffer) {
 }
 
 export async function generateGroundTextures(publicDirectory = resolve(import.meta.dir, "../public")) {
-  await mkdir(cache, { recursive: true });
   for (const layer of groundLayers) {
     const source = groundSources[layer.name];
     const [color, normal, roughness] = await Promise.all([source.maps.color, source.maps.normal, source.maps.roughness].map(download));

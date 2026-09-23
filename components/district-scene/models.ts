@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { Mesh, MeshStandardMaterial, Texture, type Material, type Object3D } from "three";
+import { DoubleSide, Mesh, MeshStandardMaterial, Texture, type Material, type Object3D, type WebGLProgramParametersWithUniforms } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { getConcept, type ConceptSlug } from "@/lib/collection";
@@ -33,10 +33,29 @@ export function reflective(material: Material): material is MeshStandardMaterial
   return material instanceof MeshStandardMaterial && (material.roughness <= 0.2 || material.metalness >= 0.5);
 }
 
+/** Leaf cards: alpha-tested, and seen from both sides. */
+export function foliage(material: Material): material is MeshStandardMaterial {
+  return material instanceof MeshStandardMaterial && material.alphaTest > 0 && material.side === DoubleSide;
+}
+
+/** Where the foliage patch goes in three.js's standard material shader. */
+export const foliageMarker = "#include <normal_fragment_begin>";
+
+/**
+ * three.js turns a double-sided surface's normal around on its back face. A
+ * leaf card's normals lean outward from its crown instead, the same on both
+ * faces, so the crown lights as one mass whichever side of a card shows.
+ */
+export function patchFoliageShader(shader: Pick<WebGLProgramParametersWithUniforms, "fragmentShader">) {
+  if (!shader.fragmentShader.includes(foliageMarker)) throw new Error(`The foliage shader expects "${foliageMarker}" in three.js's standard material.`);
+  shader.fragmentShader = shader.fragmentShader.replace(foliageMarker, `#undef DOUBLE_SIDED\n${foliageMarker}`);
+}
+
 /**
  * Prepares a model for the scene's light: glass and metal reflect the
- * environment map, everything receives the sun's shadow, and everything
- * but blended overlays, such as contact shades, casts it. Shadows only
+ * environment map, leaf cards keep their normals on both faces, everything
+ * receives the sun's shadow, and everything but blended overlays, such as
+ * contact shades, casts it; leaf cards cast their cut-out. Shadows only
  * appear where the tier draws them.
  */
 export function shade(model: Object3D, environment: Texture) {
@@ -46,6 +65,11 @@ export function shade(model: Object3D, environment: Texture) {
     object.receiveShadow = true;
     object.castShadow = materials.every((material) => !material.transparent);
     for (const material of materials) {
+      if (foliage(material) && material.onBeforeCompile !== patchFoliageShader) {
+        material.onBeforeCompile = patchFoliageShader;
+        material.customProgramCacheKey = () => "habitta-foliage";
+        material.needsUpdate = true;
+      }
       if (!reflective(material) || material.envMap === environment) continue;
       // Swapping one map for another needs no new shader; adding the first does.
       if (!material.envMap) material.needsUpdate = true;

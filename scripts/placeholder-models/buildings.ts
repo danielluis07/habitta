@@ -3,7 +3,8 @@ import type { Concept } from "@/lib/collection";
 import { bake, Geometry, mix, triangleSoup, type Occlusion, type Paint, type Solid, type vec3 } from "@/scripts/placeholder-models/geometry";
 import { attach, instanced, linear, type FinishName, type Instance, type Materials } from "@/scripts/placeholder-models/gltf";
 import { noise3 } from "@/scripts/placeholder-models/noise";
-import { olive, planting } from "@/scripts/placeholder-models/props";
+import { planting } from "@/scripts/placeholder-models/props";
+import { olive } from "@/scripts/placeholder-models/vegetation";
 
 export type Detail = "low" | "high";
 
@@ -519,7 +520,7 @@ function grove(build: Build) {
     }
   });
   build.props.push({
-    name: "court_trees", mesh: olive(true), finish: "olive",
+    name: "court_trees", mesh: olive("near"), finish: "foliage",
     instances: [[-6.5, -4.3], [-6.5, 4.3], [6.5, 4.3], [2.75, -4.3]].map(([x, z], i): Instance => ({ at: [x, 0.26, z], size: [0.7, 0.75, 0.7], turn: i * 1.7 })),
   });
   plant(build, beds.flatMap(([x0, x1, z0, z1], b) => along(x0 + 0.6, x1 - 0.6, high ? 1.2 : 2.4).flatMap((x, i) =>

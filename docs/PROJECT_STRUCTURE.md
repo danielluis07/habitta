@@ -16,7 +16,7 @@ Habitta is a Next.js App Router site for a fictional architecture studio. The vi
 | `public/environments/` | The environment maps glass and metal reflect: the base map for every tier and the high tier's upgrade. |
 | `public/textures/ground/` | The textured ground's tiling maps, made from CC0 sources by `bun run textures:generate`. |
 | `fonts/` | Font setup used by the app. |
-| `scripts/` | Model, environment-map and ground-texture generation, and their validation, run with Bun. `scripts/placeholder-models/` draws the development placeholders' buildings, landscape and props. |
+| `scripts/` | Model, environment-map and ground-texture generation, and their validation, run with Bun. `scripts/placeholder-models/` draws the development placeholders' buildings, landscape and props; its `vegetation.ts` and `rock.ts` make the landscape's olives, cypresses, scrub and rocks from CC0 sources, which `scripts/cc0.ts` downloads and checks. |
 | `tests/` | Bun tests for the simple-view journey, collection integrity, models, and scene behavior. |
 | `docs/` | Implementation and research notes, including `IMAGE_GENERATION.md` for the current assets and the production workflow under `docs/research/`. |
 

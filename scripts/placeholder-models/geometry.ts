@@ -22,7 +22,7 @@ type Face = { points: vec3[]; normals?: vec3[]; paint: Paint; cell?: number; lay
 export type Solid = { min: vec3; max: vec3 };
 
 /** Packed, indexed triangles ready for a glTF primitive; `layers` holds four ground-layer weights per vertex. */
-export type MeshData = { positions: number[]; normals: number[]; colors: number[]; indices: number[]; layers?: number[] };
+export type MeshData = { positions: number[]; normals: number[]; colors: number[]; indices: number[]; layers?: number[]; uvs?: number[]; tangents?: number[] };
 
 const add = (a: vec3, b: vec3): vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a: vec3, b: vec3): vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -290,8 +290,12 @@ export class BVH {
     return t0 > t1 || t1 < 0 || t0 > best ? Infinity : t0;
   }
 
-  /** The distance to the nearest hit within `limit`, or Infinity. */
-  nearest(origin: vec3, direction: vec3, limit: number) {
+  /**
+   * The distance to the nearest hit within `limit`, or Infinity. `hit`, if
+   * given, receives the triangle hit and the barycentric coordinates of the
+   * hit on it: the soup's own triangle, where none was split.
+   */
+  nearest(origin: vec3, direction: vec3, limit: number, hit?: { triangle: number; u: number; v: number }) {
     if (!this.count) return Infinity;
     const [ox, oy, oz] = origin;
     const [dx, dy, dz] = direction;
@@ -332,8 +336,11 @@ export class BVH {
         const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
         const v = (dx * qx + dy * qy + dz * qz) * inv;
         if (v < 0 || u + v > 1) continue;
-        const hit = (e2x * qx + e2y * qy + e2z * qz) * inv;
-        if (hit > 1e-6 && hit < best) best = hit;
+        const along = (e2x * qx + e2y * qy + e2z * qz) * inv;
+        if (along > 1e-6 && along < best) {
+          best = along;
+          if (hit) [hit.triangle, hit.u, hit.v] = [order[i], u, v];
+        }
       }
     }
     return best;

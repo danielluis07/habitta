@@ -10,13 +10,24 @@ export function linear(hex: string): vec3 {
   return [r, g, b];
 }
 
-type Finish = { name: string; color: string; roughness: number; metallic?: number; blend?: boolean };
+/** A finish's maps, embedded in the GLB: base colour (with the cut-out in its alpha, for cards) and an optional normal map. */
+export type FinishMaps = { color: Uint8Array; normal?: Uint8Array };
+export type MapName = "foliage" | "rockNear" | "rockFar";
+
+type Finish = {
+  name: string; color: string; roughness: number; metallic?: number; blend?: boolean;
+  /** Its maps, supplied when the document is written. */
+  map?: MapName;
+  /** Alpha-tested and seen from both sides: leaf cards. */
+  cutout?: boolean;
+};
 
 /**
  * The PBR finishes of the placeholder district, one material each. Building
  * finishes carry their colour here and take baked shading from vertex
  * colours. "Painted" finishes are white and take their colour, too, from
- * the vertices, so one draw can hold a whole prop.
+ * the vertices, so one draw can hold a whole prop. Vegetation and rocks
+ * add maps: the vertices carry their shading and the maps their colour.
  */
 export const finishes = {
   limestone: { name: "Warm limestone", color: "#E4DCCB", roughness: 0.8 },
@@ -37,19 +48,21 @@ export const finishes = {
   lake: { name: "Lake", color: "#9EB3B7", roughness: 0.45 },
   plot: { name: "Plot ground and retaining walls", color: "#FFFFFF", roughness: 0.95 },
   lane: { name: "Lane paving and kerbs", color: "#FFFFFF", roughness: 0.92 },
-  olive: { name: "Olive", color: "#FFFFFF", roughness: 0.9 },
-  cypress: { name: "Cypress", color: "#FFFFFF", roughness: 0.9 },
-  scrub: { name: "Scrub", color: "#FFFFFF", roughness: 0.95 },
-  rock: { name: "Limestone rock", color: "#FFFFFF", roughness: 0.92 },
+  foliage: { name: "Vegetation", color: "#FFFFFF", roughness: 0.85, map: "foliage", cutout: true },
+  rock: { name: "Limestone rock", color: "#FFFFFF", roughness: 0.92, map: "rockNear" },
+  rockFar: { name: "Distant limestone rock", color: "#FFFFFF", roughness: 0.92, map: "rockFar" },
   wall: { name: "Dry-stone wall", color: "#FFFFFF", roughness: 0.95 },
   shade: { name: "Contact shade", color: "#000000", roughness: 1, blend: true },
 } satisfies Record<string, Finish>;
 
 export type FinishName = keyof typeof finishes;
 
-/** One material per finish per document. */
-export function materials(document: Document) {
+/** One material per finish per document, with its maps from `maps`. */
+export function materials(document: Document, maps: Partial<Record<MapName, FinishMaps>> = {}) {
   const cache = new Map<FinishName, Material>();
+  const texture = (name: string, image: Uint8Array) => document.createTexture(name).setImage(image)
+    // PNG starts with 0x89, JPEG with 0xFF.
+    .setMimeType(image[0] === 0x89 ? "image/png" : "image/jpeg");
   return (finish: FinishName) => {
     let material = cache.get(finish);
     if (!material) {
@@ -58,6 +71,13 @@ export function materials(document: Document) {
       material = document.createMaterial(spec.name).setBaseColorFactor([r, g, b, 1])
         .setMetallicFactor(spec.metallic ?? 0).setRoughnessFactor(spec.roughness);
       if (spec.blend) material.setAlphaMode("BLEND");
+      if (spec.cutout) material.setAlphaMode("MASK").setAlphaCutoff(0.5).setDoubleSided(true);
+      if (spec.map) {
+        const supplied = maps[spec.map];
+        if (!supplied) throw new Error(`${spec.name} needs its ${spec.map} maps.`);
+        material.setBaseColorTexture(texture(`${spec.name} colour`, supplied.color));
+        if (supplied.normal) material.setNormalTexture(texture(`${spec.name} normal`, supplied.normal));
+      }
       cache.set(finish, material);
     }
     return material;
@@ -66,7 +86,7 @@ export function materials(document: Document) {
 
 export type Materials = ReturnType<typeof materials>;
 
-function floats(document: Document, type: "VEC3" | "VEC4", values: number[]) {
+function floats(document: Document, type: "VEC2" | "VEC3" | "VEC4", values: number[]) {
   const buffer = document.getRoot().listBuffers()[0];
   return document.createAccessor().setType(type).setArray(new Float32Array(values)).setBuffer(buffer);
 }
@@ -76,6 +96,8 @@ function primitive(document: Document, mesh: MeshData, surface: Material) {
   const indices = document.createAccessor().setType("SCALAR").setArray(new Uint32Array(mesh.indices)).setBuffer(buffer);
   const result = document.createPrimitive().setAttribute("POSITION", floats(document, "VEC3", mesh.positions))
     .setAttribute("NORMAL", floats(document, "VEC3", mesh.normals)).setIndices(indices).setMaterial(surface);
+  if (mesh.uvs) result.setAttribute("TEXCOORD_0", floats(document, "VEC2", mesh.uvs));
+  if (mesh.tangents) result.setAttribute("TANGENT", floats(document, "VEC4", mesh.tangents));
   if (mesh.layers) {
     // The scene's ground-layer weights, as normalized bytes, like the colours.
     const weights = Uint8Array.from(mesh.layers, (value) => Math.round(Math.min(Math.max(value, 0), 1) * 255));
