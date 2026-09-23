@@ -6,6 +6,7 @@ import { Vector2, Vector3, type Object3D, type PerspectiveCamera } from "three";
 import type { SceneProps } from "@/components/district-scene";
 import {
   buildingDirection, buildingFill, frame, framingPoints, framingRegion, lensShift, overviewDirection, overviewFill,
+  overviewForeground,
 } from "@/components/district-scene/framing";
 import { selectedSlug } from "@/lib/journey";
 
@@ -49,8 +50,9 @@ export function DistrictCamera({
     if (!active || width <= 0 || height <= 0) return;
 
     // The buildings and their labels are framed into what the page's header,
-    // arrival copy and building overview leave clear.
-    const region = framingRegion({ width, height }, { top, right, bottom, left });
+    // arrival copy and building overview leave clear, above the overview's
+    // foreground.
+    const region = framingRegion({ width, height }, { top, right, bottom, left }, slug ? 0 : overviewForeground);
     const destination = !slug && savedViewpoint
       ? savedViewpoint
       : frame(framingPoints(model, slug), camera.fov, camera.aspect, slug ? buildingFill : overviewFill, region,

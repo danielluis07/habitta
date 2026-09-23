@@ -2,16 +2,20 @@ import { Box3, MathUtils, Vector3, type Object3D, type PerspectiveCamera } from 
 import { collection, type ConceptSlug } from "@/lib/collection";
 import type { Viewpoint } from "@/lib/journey";
 
-// The camera looks northwest from above the valley side, low enough that the
-// ridge and the hazy horizon close the view behind the buildings. The
-// overview looks a little lower, about 12° down, so sky and hazy ranges rise
-// behind the arrival copy rather than treed ground.
+// The camera is fixed: it looks northwest from above the valley side, low
+// enough that the ridge and the hazy horizon close the view behind the
+// buildings. Building views look down about 18°. The overview looks lower,
+// about 6° down, so sky and a thin band of hazy ranges rise behind the
+// arrival copy rather than treed ground.
 export const buildingDirection = new Vector3(0.65, 0.38, 1).normalize();
-export const overviewDirection = new Vector3(0.65, 0.25, 1).normalize();
+export const overviewDirection = new Vector3(0.65, 0.125, 1).normalize();
 // Share of the view the framed points may fill: the overview lets the three
 // buildings dominate; a selected building keeps some district around it.
 export const overviewFill = 0.85;
 export const buildingFill = 0.6;
+// Share of its clear region the overview keeps below the buildings, for the
+// nearer landscape that frames them, like the foreground of an architectural render.
+export const overviewForeground = 0.25;
 
 /** How far the page's own layers cover each edge of the canvas, in CSS pixels. */
 export type Clearance = { top: number; right: number; bottom: number; left: number };
@@ -99,9 +103,17 @@ export function frame(
 // distance, so framing also keeps this much of the view's top clear.
 export const labelRoom = 52;
 
-/** The region the buildings are framed into: clear of the page, with room for their labels. */
-export function framingRegion(size: { width: number; height: number }, clearance: Clearance) {
-  return clearRegion(size, { ...clearance, top: clearance.top + labelRoom });
+/** The region's upper part, leaving `share` of its height below for the foreground. */
+export function aboveForeground(region: ViewRegion, share: number): ViewRegion {
+  return { ...region, y: region.y + region.height * share, height: region.height * (1 - share) };
+}
+
+/**
+ * The region the buildings are framed into: clear of the page, with room for
+ * their labels, and above `foreground` of what's left.
+ */
+export function framingRegion(size: { width: number; height: number }, clearance: Clearance, foreground = 0) {
+  return aboveForeground(clearRegion(size, { ...clearance, top: clearance.top + labelRoom }), foreground);
 }
 
 /** Shifts the camera's lens so its axis lands on the region's centre. */

@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
-import { Box3, MathUtils, PerspectiveCamera, Vector3, type Object3D } from "three";
+import { Box3, MathUtils, PerspectiveCamera, Raycaster, Vector2, Vector3, type Mesh, type Object3D } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { cameraFar, fogFar } from "@/components/district-scene/atmosphere";
 import {
+  aboveForeground,
   buildingDirection,
   buildingFill,
   clearRegion,
@@ -14,6 +15,7 @@ import {
   lensShift,
   overviewDirection,
   overviewFill,
+  overviewForeground,
   wholeView,
   type Clearance,
   type ViewRegion,
@@ -47,18 +49,41 @@ beforeAll(async () => {
 
 const framedPoints = (slug?: ConceptSlug) => framingPoints(district, slug);
 
-function projector({ position, target }: Viewpoint, aspect: number, region: ViewRegion = wholeView) {
+function camera({ position, target }: Viewpoint, aspect: number, region: ViewRegion = wholeView) {
   const camera = new PerspectiveCamera(fov, aspect, 1, cameraFar);
   lensShift(camera, region.x, region.y);
   camera.position.set(...position);
   camera.lookAt(new Vector3(...target));
   camera.updateMatrixWorld();
-  return (point: Vector3) => point.clone().project(camera);
+  return camera;
 }
 
+function projector(viewpoint: Viewpoint, aspect: number, region: ViewRegion = wholeView) {
+  const view = camera(viewpoint, aspect, region);
+  return (point: Vector3) => point.clone().project(view);
+}
+
+/** The overview as the scene frames it: clear of the page, above its foreground. */
+function overview(device: keyof typeof viewports) {
+  const size = viewports[device];
+  const aspect = size.width / size.height;
+  const region = framingRegion(size, clearances[device].overview, overviewForeground);
+  return { size, aspect, region, viewpoint: frame(framedPoints(), fov, aspect, overviewFill, region, overviewDirection) };
+}
+
+const pitch = (direction: Vector3) => MathUtils.radToDeg(Math.asin(direction.y));
+
 describe("default overview framing", () => {
+  test("the camera is fixed: the overview looks down about 6°, building views about 18°", () => {
+    expect(pitch(overviewDirection)).toBeCloseTo(6, 0);
+    expect(pitch(buildingDirection)).toBeCloseTo(18, 0);
+    // Both look northwest, from the valley side.
+    const heading = (direction: Vector3) => Math.atan2(direction.x, direction.z);
+    expect(heading(overviewDirection)).toBeCloseTo(heading(buildingDirection));
+  });
+
   test.each(Object.entries(aspects))("the three buildings dominate the %s view, centred", (_, aspect) => {
-    const project = projector(frame(framedPoints(), fov, aspect, overviewFill), aspect);
+    const project = projector(frame(framedPoints(), fov, aspect, overviewFill, wholeView, overviewDirection), aspect);
     const projected = framedPoints().map(project);
     const xs = projected.map(({ x }) => x);
     const ys = projected.map(({ y }) => y);
@@ -99,7 +124,7 @@ describe("framing clear of the page", () => {
     const aspect = size.width / size.height;
     const slug = view === "building" ? "crest" : undefined;
     const fill = slug ? buildingFill : overviewFill;
-    const region = clearRegion(size, clearance);
+    const region = aboveForeground(clearRegion(size, clearance), slug ? 0 : overviewForeground);
     const viewpoint = frame(framedPoints(slug), fov, aspect, fill, region, slug ? buildingDirection : overviewDirection);
     const projected = framedPoints(slug).map(projector(viewpoint, aspect, region));
     // In pixels from the canvas's top left, every framed point stays clear.
@@ -108,11 +133,40 @@ describe("framing clear of the page", () => {
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(clearance.left - 1e-6);
     expect(Math.max(...xs)).toBeLessThanOrEqual(size.width - clearance.right + 1e-6);
     expect(Math.min(...ys)).toBeGreaterThanOrEqual(clearance.top - 1e-6);
-    expect(Math.max(...ys)).toBeLessThanOrEqual(size.height - clearance.bottom + 1e-6);
+    // The overview's buildings stay above its foreground.
+    const foreground = slug ? 0 : (size.height - clearance.top - clearance.bottom) * overviewForeground;
+    expect(Math.max(...ys)).toBeLessThanOrEqual(size.height - clearance.bottom - foreground + 1e-6);
     const middle = (values: number[]) => (Math.min(...values) + Math.max(...values)) / 2;
     expect(middle(xs)).toBeCloseTo((clearance.left + size.width - clearance.right) / 2, -1);
-    expect(middle(ys)).toBeCloseTo((clearance.top + size.height - clearance.bottom) / 2, -1);
+    expect(middle(ys)).toBeCloseTo((clearance.top + size.height - clearance.bottom - foreground) / 2, -1);
   });
+
+  test("the foreground is a share of the clear region, below it", () => {
+    const region = aboveForeground({ x: 0, y: -0.4, width: 1, height: 0.6 }, 0.25);
+    // The top edge stays where it was; the bottom quarter is left clear.
+    expect(region.y + region.height).toBeCloseTo(0.2);
+    expect(region.height).toBeCloseTo(0.45);
+  });
+});
+
+describe("near landscape frames the overview", () => {
+  test.each(Object.keys(viewports) as (keyof typeof viewports)[])(
+    "the ground in front of the buildings fills the foreground on %s",
+    (device) => {
+      const { aspect, region, viewpoint } = overview(device);
+      const view = camera(viewpoint, aspect, region);
+      const ground = district.getObjectByName("terrain_highland_to_horizon") as Mesh;
+      const nearest = Math.min(...framedPoints().map((point) => point.distanceTo(view.position)));
+      const ray = new Raycaster();
+      // Across the bottom of the canvas, and up to the foreground's top.
+      const top = region.y - region.height;
+      for (const [x, y] of [[-1, -1], [0, -1], [1, -1], [0, (top - 1) / 2], [0, top]]) {
+        ray.setFromCamera(new Vector2(x, y), view);
+        const [hit] = ray.intersectObject(ground, false);
+        expect(hit?.distance).toBeLessThan(nearest);
+      }
+    },
+  );
 });
 
 describe("labels clear of the page", () => {
@@ -122,7 +176,7 @@ describe("labels clear of the page", () => {
 
   test.each(desktops)("every overview label clears the arrival copy at %i × %i", (width, height) => {
     const clearance = { ...none, top: 421 };
-    const region = framingRegion({ width, height }, clearance);
+    const region = framingRegion({ width, height }, clearance, overviewForeground);
     const viewpoint = frame(framedPoints(), fov, width / height, overviewFill, region, overviewDirection);
     const project = projector(viewpoint, width / height, region);
     for (const { scene } of collection) {
@@ -152,7 +206,7 @@ describe("landscape to the horizon", () => {
   test.each(views)("the ground outruns the haze from the %s view on %s", (_, device, slug) => {
     const size = viewports[device];
     const aspect = size.width / size.height;
-    const region = framingRegion(size, clearances[device][slug ? "building" : "overview"]);
+    const region = framingRegion(size, clearances[device][slug ? "building" : "overview"], slug ? 0 : overviewForeground);
     const { position } = frame(
       framedPoints(slug), fov, aspect, slug ? buildingFill : overviewFill, region,
       slug ? buildingDirection : overviewDirection,

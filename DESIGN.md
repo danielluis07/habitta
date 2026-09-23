@@ -112,11 +112,6 @@ components:
     rounded: "{rounded.sm}"
     padding: 12px 20px
     height: 44px
-  icon-button:
-    backgroundColor: "{colors.paper-raised}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.full}"
-    size: 44px
   control-bar:
     backgroundColor: "{colors.paper-raised}"
     rounded: "{rounded.sm}"
@@ -197,7 +192,7 @@ The palette is limestone paper and warm ink, with no chromatic accent.
 - **Paper raised (`#FBF9F5`)** is the surface for anything sitting over the canvas or lifted off the page: scene labels, control bar, building overview, inputs, notices.
 - **Ink (`#1F1D1A`)** is the text color and the primary action color. It is a warm near-black, never `#000`. **Ink hover (`#36332E`)** is its hover state.
 - **Ink muted (`#5E5850`)** is for secondary text: eyebrows, captions, metadata. It passes 6.2:1 on paper.
-- **Border control (`#8A8378`)** outlines interactive components (secondary buttons, icon buttons, scene labels, inputs, the control bar). It passes the 3:1 non-text contrast required for component boundaries.
+- **Border control (`#8A8378`)** outlines interactive components (secondary buttons, scene labels, inputs, the control bar). It passes the 3:1 non-text contrast required for component boundaries.
 - **Hairline (`#D9D3C7`)** is for decorative dividers only (index rows, section rules). At 1.3:1 it must never be the only visible boundary of a control.
 - **Error (`#9A3B2E`)** is reserved for form validation in the optional contact block.
 
@@ -241,7 +236,7 @@ Figures in the story are approximate targets and are labeled as such, for exampl
 
 ### District overview
 
-The canvas fills the viewport. The wordmark sits top-left over the sky, and the arrival heading and intro sit directly on the sky and haze below it, with no panel, blur, or tint behind them. The overview camera looks down about 12° and uses a lens shift to frame the buildings below the copy, so sky and hazy ranges, never treed ground, rise behind the text. Overlaid text keeps its ink and ink-muted colors, which hold AA against sky and haze (about 12:1 and 5:1). When a building opens, the arrival copy steps aside. On viewports too short to keep the copy over the sky (narrower than 768px and shorter than 800px, or shorter than 640px at any width), the heading and intro sit above the district on paper, and the district fills the viewport below them. The control bar (rotate, zoom, Reset view, motion, simple view, building index) is a single paper-raised strip anchored bottom-center on desktop. On narrow viewports it sits at the bottom edge with all controls reachable in one row or a wrapped second row, never hidden behind a menu. The building overview opens as a side panel (380px) on desktop and as a bottom sheet on narrow viewports. It never covers the selected building's label.
+The canvas fills the viewport. The wordmark sits top-left over the sky, and the arrival heading and intro sit directly on the sky and haze below it, with no panel, blur, or tint behind them. The camera is fixed ([ADR 0001](docs/adr/0001-fixed-camera-stage-set-district.md)): there is no orbit, zoom or rotation, and the only camera motion is the fly-to that follows selection. The overview camera looks down about 6° and uses a lens shift to frame the buildings below the copy, so sky and a thin band of hazy ranges, never treed ground, rise behind the text. Below the buildings it keeps a band of nearer landscape (olives, cypresses, terrace walls, rocks) that frames them like the foreground of an architectural render. Overlaid text keeps its ink and ink-muted colors, which hold AA against sky and haze (about 12:1 and 5:1). When a building opens, the arrival copy steps aside. On viewports too short to keep the copy over the sky (narrower than 768px and shorter than 800px, or shorter than 640px at any width), the heading and intro sit above the district on paper, and the district fills the viewport below them. The control bar (motion, simple view, building index) is a single paper-raised strip anchored bottom-center on desktop. On narrow viewports it sits at the bottom edge with all controls reachable in one row or a wrapped second row, never hidden behind a menu. The building overview opens as a side panel (380px) on desktop and as a bottom sheet on narrow viewports. It never covers the selected building's label.
 
 ### Building index
 
@@ -272,14 +267,12 @@ The design is flat. Depth belongs to the 3D scene, not to the UI.
 
 - **2px** (`rounded.sm`) on buttons, inputs, scene labels, panels, notices, and the control bar. Crisp edges suit architecture; soft app-like rounding does not.
 - **0** (`rounded.none`) on every image and on the diagram.
-- **Full** (`rounded.full`) only for the icon buttons in the control bar.
 - Icons come from Lucide with a 1.5px stroke, at 20px in a 44px hit target.
 
 ## Components
 
 - **Buttons.** The primary button ("Open residence", "Send") is ink with paper text. The secondary button is paper raised with a 1px border control and ink text. The minimum height for all buttons is 44px. Only one primary button is visible per view.
-- **Icon buttons.** These are the rotate and zoom controls. They are round, paper raised, 44px, with a 1px border control. Each has a visible text tooltip and an accessible name.
-- **Control bar.** A paper-raised strip with a border-control outline holds the icon buttons and text controls. The motion and simple-view controls show their state in text ("Motion on" / "Motion off"), not by color alone.
+- **Control bar.** A paper-raised strip with a border-control outline holds the text controls. The motion and simple-view controls show their state in text ("Motion on" / "Motion off"), not by color alone.
 - **Scene labels.** A DOM tag positioned from the building's label anchor. It holds the building name in `label` on paper raised with a 1px border control, and has no leader line. The **selected** label inverts to ink with paper text. Labels never use the serif.
 - **Building overview.** A paper-raised panel with a border-control outline. The content, top to bottom: an eyebrow with "Imagined concept" and the building type, the building name in `display-lg`, a `body-sm` description, the featured residence name, then the primary "Open residence" action. The close action is a secondary text button.
 - **Building index entry.** Laid out as described under Layout. The whole entry is one link target with a visible focus outline around the entire entry.
@@ -307,7 +300,7 @@ The scene hex values may be tuned against reference renders. The fog and the sky
 
 This section describes the visual character of motion only. When motion runs, and what happens when it is reduced, is defined in #7 and #12. With motion off, every change below is instant.
 
-- **Camera fly-to** (selecting a building, returning, Reset view): 1.2–1.6s, ease-in-out, with no overshoot.
+- **Camera fly-to** (selecting a building, returning to the district overview): 1.2–1.6s, ease-in-out, with no overshoot.
 - **Panels and notices:** fade plus an 8px translate over about 200ms, ease-out. Exits are slightly faster.
 - **Nothing moves on its own.** The camera fly-to is the district's only motion; a still view is a still image.
 - **Never:** parallax, scroll-jacking, spring or bounce easing, or animated reveals of story text.
