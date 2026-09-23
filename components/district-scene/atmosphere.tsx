@@ -21,6 +21,11 @@ const fogNear = 150;
 export const fogFar = 1900;
 export const cameraFar = 2100;
 const skyRadius = 1900;
+// The high tier's one shadow map covers the occupied district (±110 m
+// east–west, ±100 m north–south, buildings up to about 60 m) as seen from the
+// sun, about 15 cm a texel. The landscape beyond it takes no live shadow.
+const shadowExtent = 150;
+const shadowMapSize = 2048;
 
 // A dome of vertex colors: haze at and below the horizon, rising to the
 // zenith blue. It follows the camera, so the horizon is right from any view.
@@ -40,10 +45,11 @@ function createSky(horizon: string, zenith: string) {
 }
 
 /**
- * The district's air: sky, haze and one sun. Nothing here moves or asks for
- * frames; the sky only keeps up with frames rendered for other reasons.
+ * The district's air: sky, haze and one sun, casting a shadow on tiers that
+ * draw one. Nothing here moves or asks for frames; the sky only keeps up with
+ * frames rendered for other reasons.
  */
-export function Atmosphere({ colors }: { colors: AtmosphereColors }) {
+export function Atmosphere({ colors, shadows }: { colors: AtmosphereColors; shadows: boolean }) {
   const sky = useRef<Mesh>(null);
   const skyGeometry = useMemo(() => createSky(colors.haze, colors.zenith), [colors.haze, colors.zenith]);
 
@@ -57,7 +63,21 @@ export function Atmosphere({ colors }: { colors: AtmosphereColors }) {
     <>
       <fog attach="fog" args={[colors.haze, fogNear, fogFar]} />
       <hemisphereLight args={[colors.haze, colors.ground, 1.3]} />
-      <directionalLight color={colors.sun} position={sunPosition} intensity={2.6} />
+      <directionalLight
+        color={colors.sun}
+        position={sunPosition}
+        intensity={2.6}
+        castShadow={shadows}
+        shadow-mapSize={[shadowMapSize, shadowMapSize]}
+        shadow-camera-left={-shadowExtent}
+        shadow-camera-right={shadowExtent}
+        shadow-camera-top={shadowExtent}
+        shadow-camera-bottom={-shadowExtent}
+        shadow-camera-near={20}
+        shadow-camera-far={400}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.05}
+      />
       <mesh ref={sky} geometry={skyGeometry} renderOrder={-1} frustumCulled={false}>
         <meshBasicMaterial vertexColors side={BackSide} fog={false} depthWrite={false} toneMapped={false} />
       </mesh>

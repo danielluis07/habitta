@@ -15,6 +15,13 @@ Commit these self-contained glTF 2.0 binary files in `public/models/`. Next.js s
 
 Load no more than one detailed building at a time. Attach its scene at the district origin, with identity transform. After it loads, hide the matching low-detail selection subtree; keep the district landscape and other buildings. Restore that subtree and unload the detail on deselection or switching buildings. The selected model includes both bindings, so selection and DOM label positioning can transfer with it. Raycasting must include the selection target's mesh descendants. The anchor is an empty descendant of that target, and its world position supplies the DOM label position.
 
+The scene also loads the environment maps glass and metal reflect, from `public/environments/` (see [Rendering tiers](#rendering-tiers)):
+
+| File | Contents | When loaded |
+| --- | --- | --- |
+| `highland-512.hdr` | 512 × 256 px equirectangular Radiance HDR of the district's sky, ranges and highland | Opening scene, every tier |
+| `highland-1024.hdr` | The same at 1,024 × 512 px, the desktop pack | High tier only, after the scene opens |
+
 Every file has exactly one default scene. Embed all buffers and textures in the GLB; external files and data URIs are disallowed so opening transfer size includes all model resources. Geometry uses triangle lists, strips or fans. Meshopt compression (`EXT_meshopt_compression`) is required, including for placeholders; configure the runtime loader with a matching Meshopt decoder. `KHR_mesh_quantization` and `EXT_mesh_gpu_instancing` are also supported. Other extensions require a deliberate contract, validator and loader update. KTX2/BasisU is **not a default**; adopt it only after texture-memory profiling. Start with few PBR materials and small maps. The current placeholders are texture-free.
 
 ## Coordinates and stable bindings
@@ -39,7 +46,7 @@ The committed files are **development placeholders**, exempt from DCC authorship
 - **Contour:** four levels stepping north on a stone retaining base, against a stone uphill wall. Each level opens south through a bronze-framed glass wall under the overhanging concrete slab of its own roof. That roof is the stone-paved terrace of the level above, with timber screens and a planted edge. The top roof is planted.
 - **Grove:** a rectangular two-storey ring, buff brick below and lime render above, with deep reveals, timber frames and shutters, under a hipped clay-tile roof with ridge tiles and chimneys. It surrounds a planted court of gravel paths, brick-edged beds and olives, with the Garden residence's brick-walled patio and timber gate in its northeast corner.
 
-Each finish is its own PBR material: limestone, rubble stone, chalk plaster, oak, bronze, glass, concrete, stone paving, timber, lime render, buff brick and clay tile. A building draws once per finish. The generator bakes ambient occlusion into vertex colours (`COLOR_0`, as normalized bytes). It casts rays from every vertex against the building and a ground plane under its plot, so walls darken where they meet the ground, reveals and loggias toward their corners, and props at their base. Faces are baked on a fine grid, then keep only the rows and columns their shading needs; faces hidden inside solids or inside the envelope are dropped. Glass takes no ambient shading. Instead each pane carries a sky sheen at its head, darkening toward its foot, so it reads as glass without an environment map. Each plot's bench is a dry-stone retaining platform, baked against its building, with gravel around the building and planting at its edges. Paths ramp down from the benches between stone edges to a kerbed lane, whose kerbs drop where each path joins it.
+Each finish is its own PBR material: limestone, rubble stone, chalk plaster, oak, bronze, glass, concrete, stone paving, timber, lime render, buff brick and clay tile. A building draws once per finish. The generator bakes ambient occlusion into vertex colours (`COLOR_0`, as normalized bytes). It casts rays from every vertex against the building and a ground plane under its plot, so walls darken where they meet the ground, reveals and loggias toward their corners, and props at their base. Faces are baked on a fine grid, then keep only the rows and columns their shading needs; faces hidden inside solids or inside the envelope are dropped. Glass takes no ambient shading. Instead each pane carries a sky sheen at its head, darkening toward its foot, so it reads as glass on its own; the environment map adds reflections on top. Each plot's bench is a dry-stone retaining platform, baked against its building, with gravel around the building and planting at its edges. Paths ramp down from the benches between stone edges to a kerbed lane, whose kerbs drop where each path joins it.
 
 Repeated props are GPU instances (`EXT_mesh_gpu_instancing`), one draw per part however often they repeat. In the district, these are lane lights, near and far olives, cypresses, scrub, limestone rocks, dry-stone terrace walls and the soft contact shades under near trees. In both detail levels, they are each building's planting and Grove's court olives. This is simplified massing, not an accepted final architectural model or concept visualization.
 
@@ -60,18 +67,38 @@ Generation intentionally replaces the four model files with placeholders. Run it
 
 | Budget | Mobile | Desktop |
 | --- | --- | --- |
-| Opening GLB, including embedded textures | ≤ 2,000,000 bytes (decimal 2 MB) | Same |
+| Opening transfer: district GLB, including embedded textures, plus the base environment map | ≤ 2,000,000 bytes (decimal 2 MB) | Same, on both rendering tiers |
+| Deferred desktop pack, high rendering tier only | None | ≤ 3,000,000 bytes |
 | Opening triangles | ≤ 75,000 | ≤ 150,000 |
 | District plus one selected detail | ≤ 150,000 | ≤ 300,000 |
 | Draw calls, opening and each selection | ≤ 60 | ≤ 120 |
 
-Both tiers currently use the same exports, so assets must pass both. The byte gate uses the Meshopt-compressed file size on disk, without assuming additional HTTP gzip/Brotli savings. The opening asset set is the district GLB alone; any future mandatory model/texture download must be added to this accounting before adoption.
+Mobile and desktop are device classes; both currently use the same exports, so assets must pass both. The byte gates use file sizes on disk (Meshopt-compressed for GLBs, run-length-encoded for environment maps), without assuming additional HTTP gzip/Brotli savings. The opening asset set is the district GLB and the base environment map, whichever rendering tier the device gets. Any future mandatory model/texture download must be added to this accounting before adoption, and any high-tier upgrade to the desktop pack. With the committed files, the opening transfer is 728 KB (638 KB GLB, 90 KB map) and the desktop pack 249 KB.
 
 `bun run models:validate` recursively discovers **every GLB under `public/`**, including unreferenced exports. It runs the [Khronos glTF Validator](https://github.com/KhronosGroup/glTF-Validator) on each original file, decodes Meshopt using [glTF Transform](https://gltf-transform.dev/modules/core/classes/NodeIO), then runs Khronos validation again on an in-memory uncompressed GLB. The decoded pass is necessary because the validator does not inspect Meshopt payloads itself. Unsupported-extension informational messages from Khronos do not replace decoding. Errors, decoding failures, missing required models, binding failures and budget violations make the command exit nonzero. Warning counts appear in the report.
 
 Counts traverse the default scene, counting each mesh occurrence, each primitive and GPU instance multiplicity. Triangle lists use index count / 3 (or vertex count / 3 without indices); strips/fans use count − 2. Each primitive on an ordinary mesh node counts as one draw; GPU instances share that draw. Selection totals conservatively add the **entire district plus the selected detail**, even during the replacement overlap. They do not sum all three detailed files, and do not subtract the hidden low-detail building. Future scene loading must honour this one-detail-at-a-time assumption.
 
-`bun run build` runs this validation before Next.js. `bun test` also validates committed models and exercises broken/corrupt exports, missing or renamed bindings, transforms, oversized files, combined selection budgets, reused meshes and GPU instances. No WebGL is needed for these checks.
+The validator also reads each environment map named in `components/district-scene/quality.ts`: it must exist, be an RLE Radiance HDR twice as wide as it is high, and the base map must be 256 to 512 px wide. The base map's bytes join the district GLB's in the opening transfer; the maps in `desktopPack` count toward the desktop pack.
+
+`bun run build` runs this validation before Next.js. `bun test` also validates committed models and exercises broken/corrupt exports, missing or renamed bindings, transforms, oversized files, combined selection budgets, reused meshes and GPU instances, and missing, malformed or oversized environment maps. No WebGL is needed for these checks.
+
+## Rendering tiers
+
+Quality comes mainly from these assets and their baked light. The scene renders them at one of two **rendering tiers**, defined with their selection and step-down thresholds in `components/district-scene/quality.ts`. A tier only adds runtime effects on top; none of them is required.
+
+| | Base tier (every device) | High tier (capable desktops) |
+| --- | --- | --- |
+| Environment map on glass and metal | `highland-512.hdr` | `highland-1024.hdr` once loaded, `highland-512.hdr` until then |
+| Pixel ratio | 1 | The device's, up to 2 |
+| Sun shadow map | None | One, 2,048 px, over the occupied district |
+| Post-processing | None (the canvas's MSAA) | Subtle SSAO (N8AO) and SMAA |
+| Downloads | Opening transfer | Opening transfer, then the desktop pack |
+
+Glass and metal are the glossy (roughness ≤ 0.2) or metallic (metalness ≥ 0.5) materials; three.js prefilters their equirectangular map into a PMREM on first use. The base tier stays within the #9 baseline, which excludes only high-resolution HDR environments. Every mesh receives the sun's shadow and every opaque one casts it, so an export needs no shadow flags; only the high tier draws them.
+
+The environment maps are generated, not captured: [`scripts/generate-environment-maps.ts`](../scripts/generate-environment-maps.ts) (`bun run environments:generate`) draws the sky from the scene haze to its zenith, a soft glow around the sun, two layers of ranges, higher to the north, and the mottled highland fading into the haze, all from the DESIGN.md scene tokens. The sun itself is left out, because the scene's directional light already draws its highlight. A captured or rendered HDR may replace them if it keeps the file names, format and budgets.
+
 
 These are asset costs, not complete frame measurements. The runtime sky, other procedural meshes, shadow passes, material effects and UI rendering may add costs. Reserve headroom and check renderer triangle/draw-call statistics on representative iOS, Android, low-end laptop and desktop hardware. Opening size, triangle counts and draws do not prove the 30 FPS mobile / 60 FPS desktop targets; camera feel, visibility, architectural fidelity and performance remain manual review items.
 

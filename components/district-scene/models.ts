@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { Mesh, Texture, type Material, type Object3D } from "three";
+import { Mesh, MeshStandardMaterial, Texture, type Material, type Object3D } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { getConcept, type ConceptSlug } from "@/lib/collection";
@@ -28,15 +28,42 @@ export function bindBuilding(slug: ConceptSlug, model: Object3D): BuildingBindin
   return { slug, target, anchor };
 }
 
-// Frees the GPU copies of a model's geometry, materials and textures.
+/** Glass and metal: glossy or metallic finishes, which reflect the environment map. */
+export function reflective(material: Material): material is MeshStandardMaterial {
+  return material instanceof MeshStandardMaterial && (material.roughness <= 0.2 || material.metalness >= 0.5);
+}
+
+/**
+ * Prepares a model for the scene's light: glass and metal reflect the
+ * environment map, everything receives the sun's shadow, and everything
+ * but blended overlays, such as contact shades, casts it. Shadows only
+ * appear where the tier draws them.
+ */
+export function shade(model: Object3D, environment: Texture) {
+  model.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    const materials: Material[] = Array.isArray(object.material) ? object.material : [object.material];
+    object.receiveShadow = true;
+    object.castShadow = materials.every((material) => !material.transparent);
+    for (const material of materials) {
+      if (!reflective(material) || material.envMap === environment) continue;
+      // Swapping one map for another needs no new shader; adding the first does.
+      if (!material.envMap) material.needsUpdate = true;
+      material.envMap = environment;
+    }
+  });
+}
+
+// Frees the GPU copies of a model's geometry, materials and textures. The
+// environment map is the scene's, shared by every model, and stays.
 export function disposeModel(model: Object3D) {
   model.traverse((object) => {
     if (!(object instanceof Mesh)) return;
     object.geometry.dispose();
     const materials: Material[] = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
-      for (const value of Object.values(material)) {
-        if (value instanceof Texture) value.dispose();
+      for (const [key, value] of Object.entries(material)) {
+        if (value instanceof Texture && key !== "envMap") value.dispose();
       }
       material.dispose();
     }

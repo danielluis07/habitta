@@ -3,11 +3,15 @@ import { join, relative, resolve } from "node:path";
 import { type Document, type Node, Primitive } from "@gltf-transform/core";
 import { EXTMeshoptCompression, type InstancedMesh } from "@gltf-transform/extensions";
 import { validateBytes } from "gltf-validator";
+import { desktopPack, environmentMaps } from "@/components/district-scene/quality";
 import { collection } from "@/lib/collection";
 import { modelIO } from "@/scripts/model-io";
 
 export const modelBudgets = {
+  /** The district GLB and the base environment map, on every tier. */
   openingBytes: 2_000_000,
+  /** What the high tier fetches after the scene opens. */
+  desktopPackBytes: 3_000_000,
   mobile: { openingTriangles: 75_000, selectedTriangles: 150_000, drawCalls: 60 },
   desktop: { openingTriangles: 150_000, selectedTriangles: 300_000, drawCalls: 120 },
 } as const;
@@ -15,6 +19,19 @@ export const modelBudgets = {
 type Counts = { triangles: number; drawCalls: number };
 type AssetReport = Counts & { url: string; bytes: number; warnings: number };
 type Scenario = Counts & { name: string };
+type EnvironmentReport = { url: string; bytes: number; width: number; height: number };
+
+/** The size of an equirectangular Radiance HDR, from its header. */
+function radianceSize(bytes: Uint8Array) {
+  const header = new TextDecoder().decode(bytes.subarray(0, 512));
+  const resolution = /\n\n-Y (\d+) \+X (\d+)\n/.exec(header);
+  if (!/^#\?(RADIANCE|RGBE)\n/.test(header) || !header.includes("FORMAT=32-bit_rle_rgbe") || !resolution) {
+    throw new Error("Environment maps must be Radiance HDR (RGBE) files.");
+  }
+  const [height, width] = [Number(resolution[1]), Number(resolution[2])];
+  if (width !== height * 2) throw new Error(`An equirectangular map is twice as wide as it is high; found ${width} × ${height}.`);
+  return { width, height };
+}
 
 /** Count rendered occurrences, including shared meshes and GPU instances. */
 function sceneCounts(nodes: Node[]): Counts {
@@ -67,6 +84,7 @@ export async function validateModels(publicDirectory = resolve(import.meta.dir, 
   const errors: string[] = [];
   const assets: AssetReport[] = [];
   const scenarios: Scenario[] = [];
+  const environments: EnvironmentReport[] = [];
   const documents = new Map<string, Node[]>();
   const io = await modelIO();
 
@@ -112,6 +130,28 @@ export async function validateModels(publicDirectory = resolve(import.meta.dir, 
     }
   }
 
+  // The base environment map opens every tier; the rest belong to the desktop pack.
+  for (const url of Object.values(environmentMaps)) {
+    const bytes = await readFile(join(publicDirectory, url.slice(1))).catch(() => null);
+    if (!bytes) {
+      errors.push(`${url}: missing environment map.`);
+      continue;
+    }
+    try {
+      environments.push({ url, bytes: bytes.byteLength, ...radianceSize(new Uint8Array(bytes)) });
+    } catch (error) {
+      errors.push(`${url}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  const base = environments.find((environment) => environment.url === environmentMaps.base);
+  if (base && (base.width < 256 || base.width > 512)) {
+    errors.push(`${base.url}: the base environment map is 256 to 512 px wide; found ${base.width}.`);
+  }
+  const packBytes = environments.filter(({ url }) => desktopPack.includes(url)).reduce((sum, { bytes }) => sum + bytes, 0);
+  if (packBytes > modelBudgets.desktopPackBytes) {
+    errors.push(`Desktop pack: ${packBytes} bytes exceeds ${modelBudgets.desktopPackBytes} bytes.`);
+  }
+
   const districtURL = "/models/district-low.glb";
   const required = [districtURL, ...collection.map((concept) => concept.scene.detailedModel)];
   for (const url of required) {
@@ -148,8 +188,11 @@ export async function validateModels(publicDirectory = resolve(import.meta.dir, 
   }
 
   const district = assets.find((asset) => asset.url === districtURL);
+  const transfer = { opening: (district?.bytes ?? 0) + (base?.bytes ?? 0), desktopPack: packBytes };
   if (district) {
-    if (district.bytes > modelBudgets.openingBytes) errors.push(`Opening scene: ${district.bytes} bytes exceeds ${modelBudgets.openingBytes} bytes.`);
+    if (transfer.opening > modelBudgets.openingBytes) {
+      errors.push(`Opening transfer (district GLB and base environment map): ${transfer.opening} bytes exceeds ${modelBudgets.openingBytes} bytes.`);
+    }
     scenarios.push({ name: "opening", triangles: district.triangles, drawCalls: district.drawCalls });
     for (const concept of collection) {
       const detail = assets.find((asset) => asset.url === concept.scene.detailedModel);
@@ -168,19 +211,21 @@ export async function validateModels(publicDirectory = resolve(import.meta.dir, 
       }
     }
   }
-  return { assets, scenarios, errors };
+  return { assets, environments, transfer, scenarios, errors };
 }
 
 if (import.meta.main) {
   try {
     const report = await validateModels();
     console.table(report.assets);
+    console.table(report.environments);
     console.table(report.scenarios);
+    console.log(`Opening transfer: ${report.transfer.opening} bytes. Desktop pack: ${report.transfer.desktopPack} bytes.`);
     if (report.errors.length) {
       console.error(report.errors.join("\n"));
       process.exitCode = 1;
     } else {
-      console.log(`Validated ${report.assets.length} runtime GLBs; bindings and mobile/desktop budgets pass.`);
+      console.log(`Validated ${report.assets.length} runtime GLBs and ${report.environments.length} environment maps; bindings and budgets pass.`);
     }
   } catch (error) {
     console.error(error);
