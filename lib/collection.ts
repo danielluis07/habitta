@@ -3,7 +3,7 @@
 //
 // Copy below is production copy for Crest, Contour and Grove, written to the
 // accepted architectural brief and comparison board reviewed at commit
-// 0148994. Revision 1 editorial images are described in docs/IMAGE_GENERATION.md.
+// 0148994. Editorial image revisions are described in docs/IMAGE_GENERATION.md.
 
 import {
   getProvenanceEntry,
@@ -125,20 +125,20 @@ function sceneBinding(slug: ConceptSlug): SceneBinding {
 }
 
 const crestContext = visualization(
-  "crest-building-context-r1",
+  "crest-building-context-r2",
   "Crest from the southwest: a slender twelve-storey tower of pale vertical piers and recessed loggias on a stone plinth along the northwest ridge.",
   "The Horizon residence sits behind the level-10 loggia in the southwest bay.",
 );
 
 const contourContext = visualization(
-  "contour-building-context-r1",
+  "contour-building-context-r2",
   "Contour from downhill to the southwest: four long concrete terraces stepping up the eastern hillside above a stone retaining base.",
   "The Terrace residence is the western home on the second step.",
 );
 
 const groveContext = visualization(
-  "grove-building-context-r1",
-  "Grove from above the southwest: a two-storey ring of lime render and buff brick around an open planted court on the lower bench.",
+  "grove-building-context-r2",
+  "Grove from above the southwest: four straight two-storey wings of lime render and buff brick form a rectangular ring around an open planted court on the lower bench.",
   "The Garden residence occupies the northeast ground-floor corner of the court.",
 );
 
@@ -194,20 +194,20 @@ export const collection: readonly Concept[] = [
     },
     visualizations: {
       living: visualization(
-        "crest-living-r1",
+        "crest-living-r2",
         "The Horizon living room looking southwest across oak floors and the kitchen edge, through a three-panel bronze opening to the recessed loggia and the valley beyond.",
       ),
       outdoor: visualization(
-        "crest-outdoor-r1",
+        "crest-outdoor-r2",
         "The Horizon loggia seen from its east end: limestone paving, a solid pale parapet with a bronze rail, the slab above, and a glimpse back into the living room.",
       ),
       quietRoom: visualization(
-        "crest-quiet-room-r1",
+        "crest-quiet-room-r2",
         "The Horizon main bedroom from its doorway, looking toward the southeast corner and a broad south window over the valley.",
       ),
       materialStudy: visualization(
-        "crest-material-study-r1",
-        "Close detail of the Horizon living-to-loggia sill, where pale oak meets limestone paving at a bronze track beside the concrete reveal.",
+        "crest-material-study-r2",
+        "Close detail of the Horizon living-to-loggia sill, where pale oak meets limestone paving at a bronze track beside a pale stone reveal.",
       ),
       buildingContext: crestContext,
     },
@@ -265,19 +265,19 @@ export const collection: readonly Concept[] = [
     },
     visualizations: {
       living: visualization(
-        "contour-living-r1",
+        "contour-living-r2",
         "The Terrace living and dining space looking southeast along terrazzo floors and a four-panel glass wall, onto the deep terrace and the valley.",
       ),
       outdoor: visualization(
-        "contour-outdoor-r1",
+        "contour-outdoor-r2",
         "The Terrace residence terrace from its southwest corner, looking back to the living and bedroom openings past a planted edge, a timber screen and the stepped floor above.",
       ),
       quietRoom: visualization(
-        "contour-quiet-room-r1",
+        "contour-quiet-room-r2",
         "The Terrace main bedroom from its doorway, oak floor leading to a south opening onto a screened corner of the terrace.",
       ),
       materialStudy: visualization(
-        "contour-material-study-r1",
+        "contour-material-study-r2",
         "Close detail of the Terrace living threshold: terrazzo inside meets textured stone paving at a bronze sill, beside the timber screen, under board-textured concrete.",
       ),
       buildingContext: contourContext,
@@ -290,7 +290,7 @@ export const collection: readonly Concept[] = [
       name: "Grove",
       role: "Courtyard building",
       description:
-        "A low two-storey ring around a planted court on the lower southwestern bench. Lime render over a buff brick plinth, with clay and oak inside.",
+        "Four straight two-storey wings form a rectangular ring around a planted court on the lower southwestern bench. Lime render over a buff brick plinth, with clay and oak inside.",
       exteriorStill: groveContext,
     },
     featuredResidence: {
@@ -336,12 +336,12 @@ export const collection: readonly Concept[] = [
     },
     visualizations: {
       living: visualization(
-        "grove-living-r1",
-        "The Garden living room looking west across a clay tile floor, through a two-panel timber opening to the private patio and the shared court garden beyond.",
+        "grove-living-r2",
+        "The Garden living room looking west across a clay tile floor, through a two-panel timber opening to the private patio and the straight opposite wing across the planted court.",
       ),
       outdoor: visualization(
-        "grove-outdoor-r1",
-        "The Garden residence private patio from its west edge, looking back into the living room past a low brick wall and a timber gate to the shared path.",
+        "grove-outdoor-r2",
+        "The Garden residence private patio from its west edge, looking back into the living room beside a low straight brick wall and a timber gate to the shared path.",
       ),
       quietRoom: visualization(
         "grove-quiet-room-r1",
