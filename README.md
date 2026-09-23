@@ -29,4 +29,4 @@ This runs Bun's test runner with Testing Library in a happy-dom environment (con
 
 Concept content lives in one typed module, `lib/collection.ts`.
 
-Runtime models live in `public/models/`. Check all GLBs, scene bindings and asset budgets with `bun run models:validate`; this also runs before `bun run build`. `bun run models:generate` regenerates the four development placeholders and overwrites those files. See the [asset contract](docs/runtime-assets.md) before replacing them with final exports.
+Runtime models live in `public/models/`. Check all GLBs, scene bindings and asset budgets with `bun run models:validate`; this also runs before `bun run build`. `bun run models:generate` regenerates the four development placeholders and overwrites those files. The environment maps in `public/environments/` are validated with them; `bun run environments:generate` redraws them from the scene tokens. See the [asset contract](docs/runtime-assets.md) before replacing them with final exports.

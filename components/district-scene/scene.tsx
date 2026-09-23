@@ -7,21 +7,39 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import WebGL from "three/addons/capabilities/WebGL.js";
 import { Atmosphere, cameraFar, type AtmosphereColors } from "@/components/district-scene/atmosphere";
 import { DistrictCamera } from "@/components/district-scene/camera";
+import { QualityEffects } from "@/components/district-scene/effects";
+import { useEnvironment } from "@/components/district-scene/environment";
 import { SceneLoading, type SceneProps } from "@/components/district-scene";
-import { bindBuilding, configureLoader, useDetailedBuilding } from "@/components/district-scene/models";
-import { pixelRatioCap } from "@/components/district-scene/pixel-ratio";
+import { bindBuilding, configureLoader, shade, useDetailedBuilding } from "@/components/district-scene/models";
+import {
+  FrameRateMonitor, initialTier, lowerTier, qualityTiers, readDevice, rendererName, type QualityTier, type TierSettings,
+} from "@/components/district-scene/quality";
 import { Button } from "@/components/ui/button";
 import { collection, type ConceptSlug } from "@/lib/collection";
 import { selectedSlug } from "@/lib/journey";
 
 type LabelRefs = RefObject<Partial<Record<ConceptSlug, HTMLButtonElement>>>;
 
+// On Windows, ANGLE compiles shaders as Direct3D HLSL, and three.js prints
+// the compiler's notes. Two come from shaders the scene uses but doesn't own,
+// and change nothing on screen: three.js's PMREM prefilter folds constants
+// with a rounding note (X4122), and N8AO's denoise blur samples inside a
+// loop, where derivatives are undefined (X3595), from targets with no mips.
+const benignShaderNote = /^\(\d+,\d+(-\d+)?\): warning X(4122|3595): /;
+function benignProgramLog(message: string, log: unknown) {
+  // ANGLE ends its logs with a NUL character.
+  return message === "THREE.WebGLProgram: Program Info Log:" && typeof log === "string" &&
+    log.replaceAll("\0", "").split("\n").every((line) => !line.trim() || benignShaderNote.test(line.trim()));
+}
+
 // @react-three/fiber 9 (through 9.8) creates a THREE.Clock for every Canvas,
-// which three r183 deprecated in favour of THREE.Timer. Only that notice is
-// dropped; every other three.js message prints as it would by default.
+// which three r183 deprecated in favour of THREE.Timer. That notice and the
+// shader notes above are dropped; every other three.js message prints as it
+// would by default.
 const threeConsole = getConsoleFunction();
 setConsoleFunction((type, message, ...params) => {
   if (type === "warn" && message.startsWith("THREE.Clock: This module has been deprecated")) return;
+  if (type === "warn" && benignProgramLog(message, params[0])) return;
   if (threeConsole) return threeConsole(type, message, ...params);
   const trace = params[0] as { isStackTrace?: boolean; getError: (message: string) => Error } | undefined;
   if (trace?.isStackTrace) console[type](trace.getError(message));
@@ -34,11 +52,15 @@ function shown(object: Object3D | null) {
   return true;
 }
 
-function DistrictModel({ labels, onReady, ...props }: SceneProps & {
+function DistrictModel({ labels, onReady, onMotionFrame, environmentUpgrade, ...props }: SceneProps & {
   labels: LabelRefs;
   onReady: (placeholder: boolean) => void;
+  onMotionFrame: (seconds: number) => void;
+  /** A better environment map to fetch once the scene has opened. */
+  environmentUpgrade: string | null;
 }) {
   const gltf = useLoader(GLTFLoader, "/models/district-low.glb", configureLoader);
+  const environment = useEnvironment(environmentUpgrade);
   // useLoader owns the cached resources; each mounted scene owns its graph.
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const lowDetail = useMemo(() => collection.map(({ slug }) => bindBuilding(slug, model)), [model]);
@@ -51,6 +73,13 @@ function DistrictModel({ labels, onReady, ...props }: SceneProps & {
   );
   const projected = useMemo(() => new Vector3(), []);
   const ready = useRef(false);
+
+  // Before a model's first frame, and again when a better map arrives.
+  useLayoutEffect(() => {
+    shade(model, environment);
+    if (detail) shade(detail.model, environment);
+    invalidate();
+  }, [detail, environment, invalidate, model]);
 
   // The detail shares the district's world coordinates, so it replaces the
   // low-detail building in place, within the same frame.
@@ -105,7 +134,7 @@ function DistrictModel({ labels, onReady, ...props }: SceneProps & {
 
   return (
     <>
-      <DistrictCamera {...props} model={model} />
+      <DistrictCamera {...props} model={model} onMotionFrame={onMotionFrame} />
       <primitive object={model} dispose={null} onClick={select} />
       {detail ? <primitive object={detail.model} dispose={null} onClick={select} /> : null}
     </>
@@ -133,7 +162,29 @@ function SupportedScene(props: SceneProps) {
     setPlaceholder(isPlaceholder);
     setReady(true);
   }, []);
-  const [maxPixelRatio] = useState(() => pixelRatioCap());
+  // The tier is chosen once the renderer names its GPU, and the scene waits
+  // for it, so nothing is drawn or allocated for another tier. It only ever
+  // steps down after that.
+  const [device] = useState(readDevice);
+  const [tier, setTier] = useState<QualityTier | null>(null);
+  const settings: TierSettings = qualityTiers[tier ?? "base"];
+  const [monitor] = useState(() => new FrameRateMonitor());
+  const onMotionFrame = useCallback((seconds: number) => {
+    const lower = tier && lowerTier(tier);
+    if (!lower || !monitor.sample(seconds)) return;
+    monitor.reset();
+    setTier(lower);
+  }, [monitor, tier]);
+  useEffect(() => {
+    // Frames stop while the tab is hidden; the first one back isn't slow.
+    const onVisibility = () => { if (document.hidden) monitor.pause(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [monitor]);
+  // The desktop pack waits until the scene has opened.
+  const environmentUpgrade = ready && settings.environmentMap !== qualityTiers.base.environmentMap
+    ? settings.environmentMap
+    : null;
   const colors = useMemo((): AtmosphereColors => {
     const style = getComputedStyle(document.documentElement);
     const token = (name: string) => style.getPropertyValue(`--color-scene-${name}`).trim();
@@ -162,7 +213,9 @@ function SupportedScene(props: SceneProps) {
       <Canvas
         ref={canvasRef}
         frameloop={props.stage.name === "residence" ? "never" : "demand"}
-        dpr={[1, maxPixelRatio]}
+        dpr={[1, settings.maxPixelRatio]}
+        // PCF shadow maps, drawn only while the tier's sun casts a shadow.
+        shadows="percentage"
         camera={{ fov: 42, near: 0.5, far: cameraFar }}
         // Khronos PBR Neutral keeps the buildings' true material hues; the
         // warmth comes from the sun, not from a tint over the image.
@@ -172,11 +225,22 @@ function SupportedScene(props: SceneProps) {
           // Labels are the keyboard interface; the canvas has no tab stop.
           gl.domElement.setAttribute("aria-hidden", "true");
           gl.domElement.tabIndex = -1;
+          setTier(initialTier({ ...device, renderer: rendererName(gl.getContext()) }));
         }}>
-        <Atmosphere colors={colors} />
-        <Suspense fallback={null}>
-          <DistrictModel {...props} labels={labels} onReady={onReady} />
-        </Suspense>
+        {tier ? (
+          <>
+            <Atmosphere colors={colors} shadows={settings.shadows} />
+            <Suspense fallback={null}>
+              <DistrictModel
+                {...props}
+                labels={labels}
+                onReady={onReady}
+                onMotionFrame={onMotionFrame}
+                environmentUpgrade={environmentUpgrade} />
+            </Suspense>
+            <QualityEffects settings={settings} />
+          </>
+        ) : null}
       </Canvas>
       <div className="pointer-events-none absolute inset-0">
         {collection.map((concept) => (

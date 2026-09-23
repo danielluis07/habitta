@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { type Document, type Node, Primitive } from "@gltf-transform/core";
 import { EXTMeshGPUInstancing, type InstancedMesh } from "@gltf-transform/extensions";
+import { desktopPack, environmentMaps } from "@/components/district-scene/quality";
 import { collection } from "@/lib/collection";
 import { modelIO } from "@/scripts/model-io";
 import { validateModels } from "@/scripts/validate-models";
@@ -18,7 +19,9 @@ afterEach(async () => {
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "habitta-models-"));
   temporaryDirectories.push(directory);
-  await cp(join(publicDirectory, "models"), join(directory, "models"), { recursive: true });
+  for (const folder of ["models", "environments"]) {
+    await cp(join(publicDirectory, folder), join(directory, folder), { recursive: true });
+  }
   return directory;
 }
 
@@ -58,6 +61,63 @@ test("every committed runtime GLB passes Khronos validation, scene bindings and 
     expect(scenario.triangles).toBeGreaterThan(0);
     expect(scenario.drawCalls).toBeGreaterThan(0);
   }
+});
+
+test("the opening transfer is the district and the base environment map, on every tier", async () => {
+  const report = await validateModels();
+  const bytes = (url: string) => [...report.assets, ...report.environments].find((asset) => asset.url === url)!.bytes;
+  expect(report.transfer.opening).toBe(bytes("/models/district-low.glb") + bytes(environmentMaps.base));
+  expect(report.transfer.opening).toBeLessThanOrEqual(2_000_000);
+  // The upgrade is fetched later, by the high tier alone.
+  expect(desktopPack).toEqual([environmentMaps.high]);
+  expect(report.transfer.desktopPack).toBe(bytes(environmentMaps.high));
+  expect(report.transfer.desktopPack).toBeLessThanOrEqual(3_000_000);
+  const base = report.environments.find(({ url }) => url === environmentMaps.base)!;
+  expect(base.width).toBeGreaterThanOrEqual(256);
+  expect(base.width).toBeLessThanOrEqual(512);
+});
+
+describe("environment maps", () => {
+  // A valid Radiance header over `bytes` in all.
+  const radiance = (width: number, bytes: number) => {
+    const header = new TextEncoder().encode(`#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y ${width / 2} +X ${width}\n`);
+    const file = new Uint8Array(bytes);
+    file.set(header);
+    return file;
+  };
+
+  test("the base map counts toward the opening budget", async () => {
+    const directory = await fixture();
+    // The district alone stays under 2 MB; with the base map, it doesn't.
+    const district = (await validateModels(directory)).assets.find(({ url }) => url === "/models/district-low.glb")!;
+    await edit(directory, "district-low.glb", (document) => {
+      document.getRoot().setExtras({ oversizedMetadata: "x".repeat(2_000_000 - district.bytes - 40_000) });
+    });
+    const report = await validateModels(directory);
+    expect(report.assets.find(({ url }) => url === "/models/district-low.glb")!.bytes).toBeLessThan(2_000_000);
+    expect(report.errors.join("\n")).toContain("Opening transfer (district GLB and base environment map)");
+  });
+
+  test("an oversized desktop pack", async () => {
+    const directory = await fixture();
+    await writeFile(join(directory, environmentMaps.high.slice(1)), radiance(1024, 3_000_001));
+    expect((await validateModels(directory)).errors.join("\n")).toContain("Desktop pack: 3000001 bytes exceeds 3000000");
+  });
+
+  test("a base map outside 256 to 512 px", async () => {
+    const directory = await fixture();
+    await writeFile(join(directory, environmentMaps.base.slice(1)), radiance(1024, 1000));
+    expect((await validateModels(directory)).errors.join("\n")).toContain("256 to 512 px wide; found 1024");
+  });
+
+  test("a missing or unreadable map", async () => {
+    const directory = await fixture();
+    await rm(join(directory, environmentMaps.base.slice(1)));
+    await writeFile(join(directory, environmentMaps.high.slice(1)), "not an HDR");
+    const errors = (await validateModels(directory)).errors.join("\n");
+    expect(errors).toContain(`${environmentMaps.base}: missing environment map.`);
+    expect(errors).toContain(`${environmentMaps.high}: Environment maps must be Radiance HDR`);
+  });
 });
 
 test("repeated street, vegetation, rock, wall and planting props are GPU-instanced", async () => {

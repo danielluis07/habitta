@@ -20,8 +20,12 @@ type Flight = {
 };
 
 export function DistrictCamera({
-  model, stage, savedViewpoint, motion, viewpointRef, clearance,
-}: Pick<SceneProps, "stage" | "savedViewpoint" | "motion" | "viewpointRef" | "clearance"> & { model: Object3D }) {
+  model, stage, savedViewpoint, motion, viewpointRef, clearance, onMotionFrame,
+}: Pick<SceneProps, "stage" | "savedViewpoint" | "motion" | "viewpointRef" | "clearance"> & {
+  model: Object3D;
+  /** Times each frame of a flight that follows another, in seconds. */
+  onMotionFrame: (seconds: number) => void;
+}) {
   const camera = useThree((state) => state.camera) as PerspectiveCamera;
   const { width, height } = useThree((state) => state.size);
   const invalidate = useThree((state) => state.invalidate);
@@ -84,6 +88,8 @@ export function DistrictCamera({
   useFrame((_, delta) => {
     const current = flight.current;
     if (!current) return;
+    // A flight's first frame follows a still view, so its delta is idle time.
+    if (current.elapsed > 0) onMotionFrame(delta);
     current.elapsed += Math.min(delta, 0.05);
     const progress = Math.min(current.elapsed / 1.4, 1);
     const eased = progress * progress * (3 - 2 * progress);

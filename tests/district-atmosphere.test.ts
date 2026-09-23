@@ -19,25 +19,11 @@ import {
   type ViewRegion,
 } from "@/components/district-scene/framing";
 import { configureLoader } from "@/components/district-scene/models";
-import { pixelRatioCap } from "@/components/district-scene/pixel-ratio";
 import { collection, type ConceptSlug } from "@/lib/collection";
 import type { Viewpoint } from "@/lib/journey";
 
-// The scene's atmosphere, framing and render budget, without WebGL.
-describe("pixel ratio cap per device class", () => {
-  const device = (queries: string[]) => (query: string) => queries.includes(query);
-  const desktop = ["(hover: hover) and (pointer: fine)", "(min-width: 768px)"];
-
-  test("1.5 on a capable desktop", () => {
-    expect(pixelRatioCap(device(desktop))).toBe(1.5);
-  });
-
-  test("1.0 on touch devices and narrow windows", () => {
-    expect(pixelRatioCap(device(["(min-width: 768px)"]))).toBe(1);
-    expect(pixelRatioCap(device(["(hover: hover) and (pointer: fine)"]))).toBe(1);
-    expect(pixelRatioCap(device([]))).toBe(1);
-  });
-});
+// The scene's atmosphere and framing, without WebGL. Rendering tiers are in
+// rendering-quality.test.ts.
 
 const fov = 42;
 // The district canvas fills a 1440 × 1000 desktop and a 390 × 844 phone.
