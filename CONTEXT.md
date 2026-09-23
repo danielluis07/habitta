@@ -25,7 +25,7 @@ An image depicting a specific imagined Habitta building or its featured residenc
 _Avoid_: Property photo
 
 **District overview**:
-The default view of the whole district, where a visitor arrives and where Reset view returns.
+The default view of the whole district, where a visitor arrives and where closing a building overview returns. It is one of a fixed set of views; the visitor moves between them by selecting, never by steering the camera.
 
 **Building index**:
 The complete list of the collection's buildings, available to every visitor from arrival. It is an equivalent route to each building overview, not a subset or a separate portfolio.
