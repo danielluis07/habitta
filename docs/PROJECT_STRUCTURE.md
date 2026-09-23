@@ -14,7 +14,7 @@ Habitta is a Next.js App Router site for a fictional architecture studio. The vi
 | `public/concepts/<slug>/` | Concept images and schematic diagrams served from public URLs. Each concept owns its own assets. |
 | `public/models/` | District and building GLBs loaded by the scene. See `docs/runtime-assets.md` before changing them. |
 | `fonts/` | Font setup used by the app. |
-| `scripts/` | Model generation and validation tools, run with Bun. |
+| `scripts/` | Model generation and validation tools, run with Bun. `scripts/placeholder-models/` draws the development placeholders' buildings, landscape and props. |
 | `tests/` | Bun tests for the simple-view journey, collection integrity, models, and scene behavior. |
 | `docs/` | Implementation and research notes, including `IMAGE_GENERATION.md` for the current assets and the production workflow under `docs/research/`. |
 
